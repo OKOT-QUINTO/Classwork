@@ -54,7 +54,7 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-tap-highlig
 <div id="pdlg"></div><div id="mdlg"></div>
 <script>
 /* ===== DATABASE SETTINGS: paste your Supabase Project URL and anon public key between the quotes (or leave empty and connect from Setup) ===== */
-const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co/rest/v1/',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
+const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
 /* ======================================================================================================================================== */
 let VER=0,USER='',NEEDLOGIN=false,NEEDJOIN=false,HASU=true,LM='in',SYNC='Saved',busy=false,again=false;
 const CFG=(SB_URL&&SB_KEY)?{url:SB_URL,key:SB_KEY}:(()=>{try{return JSON.parse(localStorage.getItem('sbcfg'))||{}}catch(e){return{}}})();
