@@ -108,6 +108,8 @@ let sy=bh+12+ml.length*6.5;if(o.info){const ir=[];for(let i=0;i<o.info.length;i+
 d.autoTable({startY:bh+6,body:ir,theme:'grid',styles:{fontSize:10.5,fontStyle:'bold',cellPadding:2.5,textColor:20,lineColor:[91,42,134],lineWidth:.3},columnStyles:{0:{fillColor:[232,222,244],cellWidth:36},2:{fillColor:[232,222,244],cellWidth:36}}});sy=d.lastAutoTable.finalY+8}
 d.autoTable({startY:sy,head:[head],body:rows,styles:{fontSize:o.fs||11,fontStyle:'bold',cellPadding:o.fs?2:3,textColor:20},headStyles:{fillColor:[91,42,134],textColor:255,fontSize:11.5},alternateRowStyles:{fillColor:[240,233,248]}});
 let y=d.lastAutoTable.finalY+9;(o.notes||[]).forEach(n=>{const t=d.splitTextToSize(n,W-28);if(y+t.length*5.5>H-14){d.addPage();y=18}d.setFontSize(11);d.setFont('helvetica','bold');d.setTextColor(20);d.text(t,14,y);y+=t.length*5.5+5});
+(o.extraTables||[]).forEach(tb=>{if(y>H-40){d.addPage();y=18}d.setFontSize(13);d.setFont('helvetica','bold');d.setTextColor(91,42,134);d.text(tb.title,W/2,y,{align:'center'});y+=6;
+d.autoTable({startY:y,head:[tb.head],body:tb.body,styles:{fontSize:9,cellPadding:2,textColor:20},headStyles:{fillColor:[91,42,134],textColor:255,fontSize:9.5},alternateRowStyles:{fillColor:[240,233,248]}});y=d.lastAutoTable.finalY+10});
 if(o.foot){d.setFontSize(10);d.text(`Headteacher's contact: ${CS().hc||''}`,14,H-8)}
 fn=uniq(fn);const blob=d.output('blob');let dl=null;try{dl=await claude.use('downloads')}catch(e){}
 if(dl)await dl.save({filename:fn,data:blob});else d.save(fn)}catch(e){if(e&&e.code!='declined')alert('Could not save PDF: '+(e.message||e))}}
@@ -240,10 +242,43 @@ function pdfAn(){const d=AN(),L=(h,a)=>h+'\n'+(a.join('\n')||'None');
 pdf('Performance analysis',[cl(),`Class ability: ${d.cab} (class average ${d.ca.toFixed(1)}%)`,'High achiever: 70% and above | Middle: 50% to 69% | Low: below 50%'],['Rank','Learner','Average %','Ability'],d.rows.map((r,i)=>[r.avg===null?'-':i+1,r.l.name,pf1(r.avg),abl(r.avg)]),`analysis_${ctx.cls}_${ctx.term}_${ctx.year}.pdf`,{notes:[
 L('ASSESSMENT COMPLETION RATE',d.comp.map(c=>`${c[0]}: ${c[1]} of ${c[2]} (${c[3].toFixed(0)}%)`)),L('RESULTS BY GENDER',d.gen.map(g=>`${g[0]}: ${g[1]} learners, average ${pf1(g[2])}, ${abl(g[2])}`)),L('RESULTS BY CLASS',d.cls.map(c=>`${c[0]}: ${c[1]} learners, average ${pf1(c[2])}, ${abl(c[2])}`)),
 L('ABILITY GROUPS',Object.entries(d.grp).map(([k,v])=>`${k} (${v.length}): ${v.join(', ')||'none'}`)),L('LEARNERS NEEDING REVISION (BELOW 50%)',d.rev.map(r=>`${r[0]}: ${r[1]}`))],foot:1})}
-function vSearch(){return`<div class="card"><h2>Search learner results</h2><input placeholder="Type a learner's name…" value="${esc(ctx.q||'')}" oninput="ctx.q=this.value;sr()"></div><div id="sr"></div>`}
-function sr(){const q=(ctx.q||'').toLowerCase().trim(),L=q?S.learners.filter(l=>l.sch==ctx.sch&&l.name.toLowerCase().includes(q)):[];
-document.getElementById('sr').innerHTML=L.map(l=>`<div class="card w"><h2>${esc(l.name)}</h2><small>${esc(l.cls)} (${esc(l.year)}) · Parent: ${esc(l.parent)} (${esc(l.contact)}) · Age ${age(l.dob)} · Repeater: ${l.rep}</small>
-<table><tr><th>Term</th><th>Subject</th><th>Series</th><th>Assessment</th><th>Marks</th><th>Comment</th></tr>${S.asg.filter(a=>a.sch==l.sch&&a.cls==l.cls&&a.year==l.year).sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{const v=S.marks[a.id]?.[l.id];return`<tr><td>${esc(a.term)}</td><td>${esc(a.subject)}</td><td>${tname(a)}</td><td>${esc(a.name)}</td><td>${v==null?'<span class="mi">missed</span>':v+' / '+a.exp}</td><td>${v==null?'–':cm(v/a.exp*100)}</td></tr>`}).join('')}</table></div>`).join('')||(q?'<div class="card">No match.</div>':'')}
+function vSearch(){const terms=['','Term 1','Term 2','Term 3'],cls=vclasses();
+return`<div class="card"><h2>Search learner results</h2>
+<div class="g">
+<div><label>Name</label><input id="sqn" placeholder="Learner name…" value="${esc(ctx.q||'')}" oninput="ctx.q=this.value"></div>
+<div><label>Class</label><select id="sqc"><option value="">All classes</option>${cls.map(x=>`<option ${ctx.sqc==x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+<div><label>Term</label><select id="sqt"><option value="">All terms</option>${terms.filter(Boolean).map(x=>`<option ${ctx.sqt==x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+<div><label>Subject / Series</label><input id="sqs" placeholder="Subject or series…" value="${esc(ctx.sqs||'')}"></div>
+<div><label>Assessment name</label><input id="sqa" placeholder="Assessment…" value="${esc(ctx.sqa||'')}"></div>
+<div><label>Comment contains</label><input id="sqm" placeholder="e.g. Excellent…" value="${esc(ctx.sqm||'')}"></div>
+</div>
+<button class="btn" onclick="doSearch()">Search</button><button class="btn s" onclick="ctx.q=ctx.sqc=ctx.sqt=ctx.sqs=ctx.sqa=ctx.sqm='';doSearch()">Clear</button>
+</div><div id="sr"></div>`}
+function doSearch(){ctx.q=(document.getElementById('sqn')?.value||'').trim();
+ctx.sqc=document.getElementById('sqc')?.value||'';
+ctx.sqt=document.getElementById('sqt')?.value||'';
+ctx.sqs=(document.getElementById('sqs')?.value||'').trim().toLowerCase();
+ctx.sqa=(document.getElementById('sqa')?.value||'').trim().toLowerCase();
+ctx.sqm=(document.getElementById('sqm')?.value||'').trim().toLowerCase();
+sr()}
+function sr(){const q=(ctx.q||'').toLowerCase().trim();
+let L=S.learners.filter(l=>l.sch==ctx.sch);
+if(q)L=L.filter(l=>l.name.toLowerCase().includes(q));
+if(ctx.sqc)L=L.filter(l=>l.cls==ctx.sqc);
+document.getElementById('sr').innerHTML=L.map(l=>{
+  let rows=S.asg.filter(a=>a.sch==l.sch&&a.cls==l.cls&&a.year==l.year);
+  if(ctx.sqt)rows=rows.filter(a=>a.term==ctx.sqt);
+  if(ctx.sqs)rows=rows.filter(a=>(a.subject||'').toLowerCase().includes(ctx.sqs)||(tname(a)||'').toLowerCase().includes(ctx.sqs));
+  if(ctx.sqa)rows=rows.filter(a=>(a.name||'').toLowerCase().includes(ctx.sqa));
+  rows=rows.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{
+    const v=S.marks[a.id]?.[l.id];const com=v==null?'–':cm(v/a.exp*100);
+    if(ctx.sqm&&!(com||'').toLowerCase().includes(ctx.sqm))return null;
+    return`<tr><td>${esc(a.term)}</td><td>${esc(a.subject)}</td><td>${tname(a)}</td><td>${esc(a.name)}</td><td>${v==null?'<span class="mi">missed</span>':v+' / '+a.exp}</td><td>${com}</td></tr>`;
+  }).filter(Boolean);
+  if((q||ctx.sqc||ctx.sqt||ctx.sqs||ctx.sqa||ctx.sqm)&&!rows.length)return'';
+  return`<div class="card w"><h2>${esc(l.name)}</h2><small>${esc(l.cls)} (${esc(l.year)}) · Parent: ${esc(l.parent)} (${esc(l.contact)}) · Age ${age(l.dob)} · Repeater: ${l.rep}</small>
+<table><tr><th>Term</th><th>Subject</th><th>Series</th><th>Assessment</th><th>Marks</th><th>Comment</th></tr>${rows.join('')}</table></div>`;
+}).join('')||((q||ctx.sqc||ctx.sqt||ctx.sqs||ctx.sqa||ctx.sqm)?'<div class="card">No match.</div>':'<div class="card" style="color:var(--mu)">Enter a name or choose filters, then press Search.</div>')}
 
 
 
@@ -266,7 +301,7 @@ const save=()=>{};
 const ROLES={admin:'Administrator',headteacher:'Headteacher',hod:'Head of department',class_teacher:'Class teacher',subject_teacher:'Subject teacher',teacher:'Teacher'};
 const ADMIN=()=>ME?.role=='admin',FULL=()=>!!ME&&['admin','headteacher','hod'].includes(ME.role);
 const CT=()=>!!ME&&(ME.role=='admin'||ME.role=='headteacher'||TEACH.some(t=>!t.subject));
-const VIS=i=>i==10?(FULL()||TEACH.some(t=>!t.subject)):i==11?ADMIN():true;
+const VIS=i=>i==10||i==11?ADMIN():true;
 const vclasses=()=>FULL()?S.classes:[...new Set(TEACH.map(t=>t.class_name))];
 const aclasses=vclasses;
 const asubs=c=>(FULL()||TEACH.some(t=>t.class_name==c&&!t.subject))?S.subjects:[...new Set(TEACH.filter(t=>t.class_name==c).map(t=>t.subject))];
@@ -419,32 +454,170 @@ async function delTeach(t,id){const r=await SB.from('teaching').delete().eq('id'
 S.exams=[];S.em={};
 const DIVS=['1','2','3','4','U','X'],ORD=[0,1,2,12,3,4,5,6,7,8,9,10,11];
 const DEFSUBS=()=>[{name:'Mathematics',short:'MTC',count:true,core:true},{name:'Social Studies',short:'SST',count:true,core:true},{name:'Science',short:'SCI',count:true,core:true},{name:'English',short:'ENG',count:true,core:true}];
-const normCfg=c=>{c=c&&typeof c=='object'?c:{};c.subjects=(c.subjects&&c.subjects.length)?c.subjects:DEFSUBS();c.grades=c.grades||[];c.divs=c.divs||[];c.push=c.push||{agg:9,to:'none',subs:['English','Mathematics']};return c};
+const normCfg=c=>{c=c&&typeof c=='object'?c:{};c.subjects=(c.subjects&&c.subjects.length)?c.subjects:DEFSUBS();c.grades=c.grades||[];c.divs=c.divs||[];
+if(!c.push)c.push={agg:9,to:'none',subs:['English','Mathematics'],rules:[]};
+if(!Array.isArray(c.push.rules))c.push.rules=[];
+/* migrate single push into rules if present and rules empty */
+if(c.push.to&&c.push.to!='none'&&!c.push.rules.length)c.push.rules=[{to:c.push.to,agg:+(c.push.agg||9),subs:c.push.subs||['English','Mathematics'],onlyFrom:c.push.to=='2'?['1']:null}];
+return c};
 const ISCT=cls=>!!ME&&(ME.role=='admin'||ME.role=='headteacher'||TEACH.some(t=>t.class_name==cls&&!t.subject));
 const canEnter=(cls,sub)=>!!ME&&(FULL()||TEACH.some(t=>t.class_name==cls&&(!t.subject||t.subject==sub)));
 const XL=()=>S.exams.filter(e=>e.sch==ctx.sch&&e.year==ctx.year&&e.term==ctx.term&&e.cls==ctx.cls).sort((a,b)=>(b.cat||'').localeCompare(a.cat||''));
 function CX(){const l=XL(),e=l.find(x=>x.id==ctx.x)||l[0];ctx.x=e?.id;return e}
 const gradeOf=(e,v)=>{if(v==null)return null;const p=Math.round(v/e.exp*100),g=e.cfg.grades.find(r=>p>=r.from&&p<=r.to);return g?+g.agg:'?'};
-function sheetRows(e){const c=e.cfg,sb=c.subjects;const R=LI().map(l=>{const m=S.em[e.id]?.[l.id]||{},cells=sb.map(s=>({v:m[s.name],a:gradeOf(e,m[s.name]),n:s.count})),ct=cells.filter(x=>x.n),miss=ct.some(x=>x.v==null),unk=ct.some(x=>x.a=='?');
+function sheetRows(e){const c=e.cfg,sb=c.subjects;const rules=(c.push&&c.push.rules&&c.push.rules.length)?c.push.rules:(c.push&&c.push.to&&c.push.to!='none'?[{to:c.push.to,agg:+(c.push.agg||9),subs:c.push.subs||[],onlyFrom:c.push.to=='2'?['1']:null}]:[]);
+const R=LI().map(l=>{const m=S.em[e.id]?.[l.id]||{},cells=sb.map(s=>({v:m[s.name],a:gradeOf(e,m[s.name]),n:s.count})),ct=cells.filter(x=>x.n),miss=ct.some(x=>x.v==null),unk=ct.some(x=>x.a=='?');
 const tagg=(miss||unk)?null:ct.reduce((t,x)=>t+x.a,0);let div=miss?'X':unk?'?':(c.divs.find(r=>tagg>=r.from&&tagg<=r.to)?.div||'U');
-if(!miss&&!unk&&c.push.to!='none'&&sb.some((s,i)=>c.push.subs.includes(s.name)&&cells[i].a===+c.push.agg)&&DIVS.indexOf(c.push.to)>DIVS.indexOf(div))div=c.push.to;
+if(!miss&&!unk){rules.forEach(ru=>{const hit=sb.some((s,i)=>(ru.subs||[]).includes(s.name)&&cells[i].a===+(ru.agg||9));
+if(hit&&(!ru.onlyFrom||ru.onlyFrom.includes(div))&&DIVS.indexOf(String(ru.to))>DIVS.indexOf(div))div=String(ru.to)})}
 return{l,cells,tagg,div,tot:cells.reduce((t,x)=>t+(x.v??0),0)}});
 R.sort(c.rank===false?(a,b)=>a.l.name.localeCompare(b.l.name):(a,b)=>(a.tagg??1e9)-(b.tagg??1e9)||a.l.name.localeCompare(b.l.name));return R}
+
+const AGG_LABELS={1:'D1',2:'D2',3:'C3',4:'C4',5:'C5',6:'C6',7:'P7',8:'P8',9:'F9'};
+function examAnalysis(e){const R=sheetRows(e),c=e.cfg,sb=c.subjects;
+const divs=['1','2','3','4','U','X'],divCnt={};divs.forEach(d=>divCnt[d]=0);let abs=0;
+R.forEach(r=>{if(r.div==='X'||r.cells.every(x=>x.v==null))abs++;else if(divCnt[r.div]!=null)divCnt[r.div]++;else divCnt['U']=(divCnt['U']||0)+1});
+const total=R.length;
+const gen={divs,divCnt,abs,total};
+/* subject analysis: for each subject count of each aggregate 1-9 and absent */
+const subA=sb.map(s=>{const counts={};for(let a=1;a<=9;a++)counts[a]=0;let ab=0;
+R.forEach(r=>{const cell=r.cells[sb.indexOf(s)];if(!cell||cell.v==null)ab++;else{const a=cell.a;if(a>=1&&a<=9)counts[a]++}});
+return{name:s.name,short:s.short,counts,abs:ab}});
+return{gen,subA,grades:c.grades||[],divsScale:c.divs||[],push:c.push||{}};}
+function analysisHtml(e){const A=examAnalysis(e),g=A.gen;
+let h=`<div style="margin-top:22px;page-break-inside:avoid"><h2 style="text-align:center;margin:0 0 8px">GENERAL ANALYSIS</h2>
+<table style="width:100%"><tr><th>DIVISION</th>${g.divs.map(d=>`<th>DIV ${d}</th>`).join('')}<th>ABS</th><th>TOTAL</th></tr>
+<tr><td><b>NO. OF PUPILS</b></td>${g.divs.map(d=>`<td>${g.divCnt[d]||0}</td>`).join('')}<td>${g.abs}</td><td><b>${g.total}</b></td></tr></table></div>`;
+h+=`<div style="margin-top:18px;page-break-inside:avoid"><h2 style="text-align:center;margin:0 0 8px">SUBJECT ANALYSIS</h2>
+<table style="width:100%"><tr><th>SUBJECT</th>${[1,2,3,4,5,6,7,8,9].map(a=>`<th>${AGG_LABELS[a]}</th>`).join('')}<th>ABS</th></tr>
+${A.subA.map(s=>`<tr><td>${esc(s.name)}</td>${[1,2,3,4,5,6,7,8,9].map(a=>`<td>${s.counts[a]||0}</td>`).join('')}<td>${s.abs}</td></tr>`).join('')}</table></div>`;
+/* grading scale */
+h+=`<div style="margin-top:16px;page-break-inside:avoid"><h2 style="margin:0 0 6px;font-size:15px">Grading scale used</h2>`;
+if(!A.grades.length)h+='<p style="color:var(--mu)">No grading set.</p>';
+else h+=`<table style="width:auto"><tr><th>From %</th><th>To %</th><th>Aggregate</th><th>Label</th></tr>${A.grades.map(r=>`<tr><td>${r.from}</td><td>${r.to}</td><td>${r.agg}</td><td>${AGG_LABELS[r.agg]||r.agg}</td></tr>`).join('')}</table>`;
+h+='</div>';
+/* division scale with push statements */
+h+=`<div style="margin-top:14px;page-break-inside:avoid"><h2 style="margin:0 0 6px;font-size:15px">Division scale</h2>`;
+if(!A.divsScale.length)h+='<p style="color:var(--mu)">No divisions set.</p>';
+else{
+  const rules=(A.push.rules&&A.push.rules.length)?A.push.rules:(A.push.to&&A.push.to!='none'?[{to:A.push.to,agg:A.push.agg,subs:A.push.subs||[]}]:[]);
+  h+=`<table style="width:auto"><tr><th>Division</th><th>From T.AGG</th><th>To T.AGG</th><th>Note</th></tr>`;
+  A.divsScale.forEach(r=>{
+    let note='';
+    const matching=rules.filter(ru=>String(ru.to)===String(r.div));
+    if(matching.length){
+      matching.forEach(ru=>{
+        const subs=(ru.subs||[]).join(', ')||'selected subjects';
+        if(ru.onlyFrom&&ru.onlyFrom.includes('1')&&String(r.div)==='2')note=`Division 1 without F9 in ${subs}`;
+        else if(String(r.div)==='3')note=`Without F9 in ${subs}`;
+        else if(String(r.div)==='4')note=`Without F9 in ${subs}`;
+        else note=`Push applied for F9 in ${subs}`;
+      });
+    }
+    h+=`<tr><td>DIV ${esc(r.div)}</td><td>${r.from}</td><td>${r.to}</td><td style="white-space:normal">${esc(note)}</td></tr>`;
+  });
+  h+='</table>';
+  if(rules.length){
+    h+='<ul style="margin:8px 0 0;padding-left:18px;color:var(--mu)">';
+    rules.forEach(ru=>{
+      const subs=(ru.subs||[]).join(', ')||'selected subjects';
+      if(String(ru.to)==='2')h+=`<li>Learners in Division 1 with F9 in <b>${esc(subs)}</b> are pushed to Division 2.</li>`;
+      else if(String(ru.to)==='3')h+=`<li>Learners with F9 in <b>${esc(subs)}</b> are pushed to Division 3.</li>`;
+      else if(String(ru.to)==='4')h+=`<li>Learners with F9 in <b>${esc(subs)}</b> are pushed to Division 4.</li>`;
+      else h+=`<li>Push to Division ${esc(ru.to)} when F9 in <b>${esc(subs)}</b>.</li>`;
+    });
+    h+='</ul>';
+  }
+}
+h+='</div>';
+return h}
 function sheetHtml(e){const c=e.cfg,sb=c.subjects,R=sheetRows(e),warn=!c.grades.length?'<p class="mi">Set the grading first (use the buttons above).</p>':!c.divs.length?'<p class="mi">Set the divisions first (use the buttons above).</p>':'';
 return`${warn}<div style="text-align:center;margin-bottom:10px"><div style="font-size:26px;font-weight:700;color:var(--ac)">${esc(CS().name)}</div><div style="font-size:15px">${esc(e.term)}, Academic year ${esc(e.year)}</div><div style="font-size:17px;font-weight:700">${esc(e.name)} ${esc(e.cls)}</div></div>
 <table><tr><th>No.</th><th>Learner name</th>${sb.map(s=>`<th>${esc(s.short)}</th><th>AGG</th>`).join('')}<th>T.AGG</th><th>DIV</th>${c.showTotal?'<th>Overall total marks</th>':''}</tr>
-${R.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.l.name)}</td>${r.cells.map(x=>`<td>${x.v??'–'}</td><td><b>${x.a??'–'}</b></td>`).join('')}<td><b>${r.tagg??'–'}</b></td><td><b>${r.div}</b></td>${c.showTotal?`<td>${r.tot}</td>`:''}</tr>`).join('')}</table>`}
-function pdfSheet(e){const c=e.cfg,R=sheetRows(e);pdf(`${e.name} ${e.cls}`,[],['No.','Learner name',...c.subjects.flatMap(s=>[s.short,'AGG']),'T.AGG','DIV',...(c.showTotal?['Overall total marks']:[])],
-R.map((r,i)=>[i+1,r.l.name,...r.cells.flatMap(x=>[x.v??'-',x.a??'-']),r.tagg??'-',r.div,...(c.showTotal?[r.tot]:[])]),`MarkSheet_${e.name}_${e.cls}_${e.term}_${e.year}.pdf`.replace(/\s+/g,'_'),{land:1,fs:10,sub:`${e.term}, Academic year ${e.year}`})}
+${R.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.l.name)}</td>${r.cells.map(x=>`<td>${x.v??'–'}</td><td><b>${x.a??'–'}</b></td>`).join('')}<td><b>${r.tagg??'–'}</b></td><td><b>${r.div}</b></td>${c.showTotal?`<td>${r.tot}</td>`:''}</tr>`).join('')}</table>
+${analysisHtml(e)}`}
+function pdfSheet(e){const c=e.cfg,R=sheetRows(e),A=examAnalysis(e);
+pdf(`${e.name} ${e.cls}`,[],['No.','Learner name',...c.subjects.flatMap(s=>[s.short,'AGG']),'T.AGG','DIV',...(c.showTotal?['Overall total marks']:[])],
+R.map((r,i)=>[i+1,r.l.name,...r.cells.flatMap(x=>[x.v??'-',x.a??'-']),r.tagg??'-',r.div,...(c.showTotal?[r.tot]:[])]),`MarkSheet_${e.name}_${e.cls}_${e.term}_${e.year}.pdf`.replace(/\s+/g,'_'),{land:1,fs:10,sub:`${e.term}, Academic year ${e.year}`,
+extraTables:[
+  {title:'GENERAL ANALYSIS',head:['DIVISION',...A.gen.divs.map(d=>'DIV '+d),'ABS','TOTAL'],
+   body:[['NO. OF PUPILS',...A.gen.divs.map(d=>A.gen.divCnt[d]||0),A.gen.abs,A.gen.total]]},
+  {title:'SUBJECT ANALYSIS',head:['SUBJECT',...[1,2,3,4,5,6,7,8,9].map(a=>AGG_LABELS[a]),'ABS'],
+   body:A.subA.map(s=>[s.name,...[1,2,3,4,5,6,7,8,9].map(a=>s.counts[a]||0),s.abs])},
+  {title:'GRADING SCALE',head:['From %','To %','Aggregate','Label'],
+   body:(A.grades||[]).map(r=>[r.from,r.to,r.agg,AGG_LABELS[r.agg]||r.agg])},
+  {title:'DIVISION SCALE',head:['Division','From T.AGG','To T.AGG','Note'],
+   body:(A.divsScale||[]).map(r=>{
+     const rules=(A.push.rules&&A.push.rules.length)?A.push.rules:[];
+     let note='';
+     rules.filter(ru=>String(ru.to)===String(r.div)).forEach(ru=>{
+       const subs=(ru.subs||[]).join(', ')||'selected subjects';
+       if(ru.onlyFrom&&ru.onlyFrom.includes('1')&&String(r.div)==='2')note='Div 1 without F9 in '+subs;
+       else note='Without F9 in '+subs;
+     });
+     return['DIV '+r.div,r.from,r.to,note];
+   })}
+]})}
+
+function examOverview(){const e=CX();if(!e)return alert('No examination selected');
+const R=sheetRows(e),L=LI(),sat=R.filter(r=>r.cells.some(x=>x.v!=null));
+const males=sat.filter(r=>(r.l.gender||'').toLowerCase()==='male');
+const females=sat.filter(r=>(r.l.gender||'').toLowerCase()==='female');
+const allMarks=sat.flatMap(r=>r.cells.map(x=>x.v).filter(v=>v!=null));
+const avg=allMarks.length?(allMarks.reduce((a,b)=>a+b,0)/allMarks.length):0;
+const lowest=allMarks.length?Math.min(...allMarks):null;
+const highest=allMarks.length?Math.max(...allMarks):null;
+const byDiv=d=>R.filter(r=>r.div===d).length;
+const needHelp=R.filter(r=>['4','U','X'].includes(r.div)).length;
+const mAvg=males.length?(males.flatMap(r=>r.cells.map(x=>x.v).filter(v=>v!=null)).reduce((a,b)=>a+b,0)/Math.max(1,males.flatMap(r=>r.cells.map(x=>x.v).filter(v=>v!=null)).length)):0;
+const fAvg=females.length?(females.flatMap(r=>r.cells.map(x=>x.v).filter(v=>v!=null)).reduce((a,b)=>a+b,0)/Math.max(1,females.flatMap(r=>r.cells.map(x=>x.v).filter(v=>v!=null)).length)):0;
+/* previous exam comparison */
+const prev=XL().filter(x=>x.id!==e.id).sort((a,b)=>(b.cat||'').localeCompare(a.cat||''))[0];
+let cmp='';
+if(prev){const PR=sheetRows(prev);const pSat=PR.filter(r=>r.cells.some(x=>x.v!=null)).length;
+const pDiv1=PR.filter(r=>r.div==='1').length;const cDiv1=byDiv('1');
+const pNeed=PR.filter(r=>['4','U','X'].includes(r.div)).length;
+cmp=`<h2 style="margin:14px 0 6px;font-size:15px">Comparison with previous examination</h2>
+<p><b>Previous:</b> ${esc(prev.name)} (${esc(prev.term)} ${esc(prev.year)})</p>
+<table style="width:auto"><tr><th></th><th>Previous</th><th>Current</th><th>Change</th></tr>
+<tr><td>Learners who sat</td><td>${pSat}</td><td>${sat.length}</td><td>${sat.length-pSat>=0?'+':''}${sat.length-pSat}</td></tr>
+<tr><td>Division 1</td><td>${pDiv1}</td><td>${cDiv1}</td><td>${cDiv1-pDiv1>=0?'+':''}${cDiv1-pDiv1}</td></tr>
+<tr><td>Need direct help (Div 4+)</td><td>${pNeed}</td><td>${needHelp}</td><td>${needHelp-pNeed>=0?'+':''}${needHelp-pNeed}</td></tr></table>
+<p style="color:var(--mu)">${cDiv1>pDiv1?'Improvement in Division 1 numbers.':cDiv1<pDiv1?'Fewer learners in Division 1 than previous exam.':'Division 1 numbers unchanged.'}</p>`;}
+else cmp='<p style="color:var(--mu);margin-top:10px">No previous examination in this class/term filter to compare.</p>';
+const modalMark=allMarks.length?Math.round(avg):'–';
+const intro=`This overview summarises the performance of <b>${esc(e.cls)}</b> in <b>${esc(e.name)}</b> (${esc(e.term)}, ${esc(e.year)}). ${sat.length} of ${L.length} enrolled learners sat the examination.`;
+const perfStmt=byDiv('1')>=sat.length*0.3?`Overall performance is strong, with a solid share of learners in Division 1.`:(needHelp>sat.length*0.4?`A significant number of learners need direct support (Division 4 and below). Targeted remedial work is recommended.`:`Performance is mixed; focus support on learners in Division 3 and below.`);
+mdlg.innerHTML=`<div class="b" style="max-width:560px;max-height:88vh;overflow:auto"><h2>Exam Overview</h2>
+<p>${intro}</p><p><b>Performance statement:</b> ${perfStmt}</p>
+<p><b>Modal / average mark (across all subject scores):</b> ${typeof modalMark==='number'?modalMark.toFixed(1):modalMark} out of ${e.exp}</p>
+<div class="g" style="margin-top:10px">
+<div class="card" style="margin:0;padding:10px"><div class="k">${sat.length}</div><div style="color:var(--mu)">Sat the exam</div></div>
+<div class="card" style="margin:0;padding:10px"><div class="k">${males.length}</div><div style="color:var(--mu)">Males</div></div>
+<div class="card" style="margin:0;padding:10px"><div class="k">${females.length}</div><div style="color:var(--mu)">Females</div></div>
+<div class="card" style="margin:0;padding:10px"><div class="k">${avg?avg.toFixed(1):'–'}</div><div style="color:var(--mu)">Average mark</div></div>
+<div class="card" style="margin:0;padding:10px"><div class="k">${lowest??'–'}</div><div style="color:var(--mu)">Lowest mark</div></div>
+<div class="card" style="margin:0;padding:10px"><div class="k">${highest??'–'}</div><div style="color:var(--mu)">Highest mark</div></div>
+</div>
+<h2 style="margin:14px 0 6px;font-size:15px">By division</h2>
+<table style="width:auto"><tr><th>Div 1</th><th>Div 2</th><th>Div 3</th><th>Div 4</th><th>U</th><th>X / Abs</th><th>Need help (4+)</th></tr>
+<tr><td>${byDiv('1')}</td><td>${byDiv('2')}</td><td>${byDiv('3')}</td><td>${byDiv('4')}</td><td>${byDiv('U')}</td><td>${byDiv('X')}</td><td><b>${needHelp}</b></td></tr></table>
+<h2 style="margin:14px 0 6px;font-size:15px">Performance by gender</h2>
+<table style="width:auto"><tr><th>Gender</th><th>Sat</th><th>Avg mark</th><th>Div 1</th><th>Need help</th></tr>
+<tr><td>Male</td><td>${males.length}</td><td>${mAvg?mAvg.toFixed(1):'–'}</td><td>${males.filter(r=>r.div==='1').length}</td><td>${males.filter(r=>['4','U','X'].includes(r.div)).length}</td></tr>
+<tr><td>Female</td><td>${females.length}</td><td>${fAvg?fAvg.toFixed(1):'–'}</td><td>${females.filter(r=>r.div==='1').length}</td><td>${females.filter(r=>['4','U','X'].includes(r.div)).length}</td></tr></table>
+${cmp}
+<button class="btn" style="margin-top:12px" onclick="mdlg.style.display='none'">Close</button></div>`;
+mdlg.style.display='flex'}
 function vExam(){const e=CX(),mk=ISCT(ctx.cls);
 let h=`<div class="card"><h2>Examination MarkSheet</h2>${bar()}${mk?`<div class="g" style="margin-top:6px"><div><label>Examination name</label><input id="xn" placeholder="e.g. End of Term Examination"></div><div><label>Expected marks per subject</label><input id="xe" type="number" value="100" min="1"></div></div><button class="btn" onclick="addExam()">Create examination</button>`:'<p style="color:var(--mu);margin:0">Only the class teacher and headteacher create examinations. Subject teachers enter marks for their own subject.</p>'}</div>`;
 if(!e)return h+`<div class="card">No examination yet for this class and term.</div>`;
 const c=e.cfg,sb=c.subjects,sheetOk=mk||FULL();
 h+=`<div class="card"><label>Select examination (newest first)</label><select onchange="ctx.x=this.value;render()">${XL().map(x=>`<option value="${x.id}" ${x.id==e.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select><p style="margin:8px 0 0">Marked out of ${e.exp} for each subject.</p>
-${mk?`<button class="btn" onclick="openGrades()">Set grading</button><button class="btn" onclick="openDivs()">Set divisions and push rule</button><button class="btn" onclick="openSubs()">Subjects</button><button class="btn s" onclick="editExam()">Edit examination</button><button class="btn s" onclick="delExam()">Delete examination</button>`:''}</div>
+${mk?`<button class="btn" onclick="openGrades()">Set grading</button><button class="btn" onclick="openDivs()">Set divisions and push rules</button><button class="btn" onclick="openSubs()">Subjects</button><button class="btn s" onclick="editExam()">Edit examination</button><button class="btn s" onclick="delExam()">Delete examination</button>`:''}</div>
 <div class="card w"><h2>Enter marks</h2><p style="margin:0 0 8px;color:var(--mu)">${mk||FULL()?'You can enter marks for every subject.':'You can enter marks only for your own subject.'}</p><table><tr><th>No.</th><th>Learner</th>${sb.map(s=>`<th>${esc(s.short)}</th>`).join('')}</tr>
 ${LI().map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)}</td>${sb.map((s,si)=>{const v=S.em[e.id]?.[l.id]?.[s.name],ok=canEnter(e.cls,s.name);return`<td><input type="number" min="0" max="${e.exp}" value="${v??''}" ${ok?'':'disabled'} onchange="setXM('${e.id}','${l.id}',${si},this)" style="width:80px"></td>`}).join('')}</tr>`).join('')}</table></div>`;
-if(sheetOk)h+=`<div class="card"><h2>MarkSheet</h2><label class="ck"><input type="checkbox" ${c.showTotal?'checked':''} onchange="optX('showTotal',this.checked)">Show overall total marks</label><label class="ck"><input type="checkbox" ${c.rank!==false?'checked':''} onchange="optX('rank',this.checked)">Rank by total aggregate (untick for alphabetical order)</label><br><button class="btn" onclick="pdfSheet(CX())">Download MarkSheet PDF</button></div><div class="card w" id="msheet">${sheetHtml(e)}</div>`;
+if(sheetOk)h+=`<div class="card"><h2>MarkSheet</h2><label class="ck"><input type="checkbox" ${c.showTotal?'checked':''} onchange="optX('showTotal',this.checked)">Show overall total marks</label><label class="ck"><input type="checkbox" ${c.rank!==false?'checked':''} onchange="optX('rank',this.checked)">Rank by total aggregate (untick for alphabetical order)</label><br><button class="btn" onclick="pdfSheet(CX())">Download MarkSheet PDF</button><button class="btn s" onclick="examOverview()">Exam Overview</button></div><div class="card w" id="msheet">${sheetHtml(e)}</div>`;
 return h}
 async function addExam(){if(!xn.value.trim())return alert('Enter the examination name');const id=crypto.randomUUID(),cfg=normCfg({}),exp=+xe.value||100,nm=xn.value.trim(),r=await SB.from('exams').insert({id,school_id:ctx.sch,year:ctx.year,term:ctx.term,class_name:ctx.cls,name:nm,exp,config:cfg});
 if(r.error)return alert('Not saved: '+r.error.message+' (has the examinations SQL file been run?)');S.exams.push({id,sch:ctx.sch,year:ctx.year,term:ctx.term,cls:ctx.cls,name:nm,exp,cfg,cat:new Date().toISOString()});ctx.x=id;render()}
@@ -465,20 +638,39 @@ function saveGrades(){const f=[...document.querySelectorAll('.gf')],t=[...docume
 for(let i=0;i<f.length;i++){if(f[i].value===''&&t[i].value===''&&a[i].value==='')continue;if(f[i].value===''||t[i].value===''||a[i].value==='')return ferr.textContent='Fill From, To and Aggregate in every row you use';const r={from:+f[i].value,to:+t[i].value,agg:+a[i].value};if(r.from>r.to||r.from<0)return ferr.textContent='In each row From must not be bigger than To';rows.push(r)}
 rows.sort((x,y)=>x.from-y.from);for(let i=1;i<rows.length;i++)if(rows[i].from<=rows[i-1].to)return ferr.textContent='Two rows overlap. Check the From and To numbers.';const e=CX();e.cfg.grades=rows;saveCfg(e)}
 const drow=r=>`<tr><td><select class="dd">${['','1','2','3','4','U','X'].map(d=>`<option ${r.div==d?'selected':''}>${d}</option>`).join('')}</select></td><td><input type="number" class="df" value="${r.from??''}" style="width:80px"></td><td><input type="number" class="dtt" value="${r.to??''}" style="width:80px"></td></tr>`;
-function openDivs(){const e=CX(),c=e.cfg,d=[...c.divs];while(d.length<5)d.push({});const P=[['none','No push (default)'],['2','Division 2'],['3','Division 3'],['4','Division 4'],['U','U (ungraded)'],['X','X (missed)']];
-dlgBox('Divisions and push rule',`<p style="margin:0 0 8px;color:var(--mu)">Give the total aggregates for each division. Example: Division 1 from 4 to 12.</p><table id="dtab"><tr><th>Division</th><th>From T.AGG</th><th>To T.AGG</th></tr>${d.map(drow).join('')}</table><button class="btn s" onclick="document.getElementById('dtab').insertAdjacentHTML('beforeend',drow({}))">+ Add row</button>
-<h2 style="margin-top:14px">Push to the next division</h2><div class="g"><div><label>Push the learner to</label><select id="pto">${P.map(p=>`<option value="${p[0]}" ${c.push.to==p[0]?'selected':''}>${p[1]}</option>`).join('')}</select></div><div><label>when the aggregate is</label><select id="pa">${opt9(c.push.agg)}</select></div></div>
-<label style="margin-top:8px">in these subjects</label>${c.subjects.map(s=>`<label class="ck"><input type="checkbox" class="ps" value="${esc(s.name)}" ${c.push.subs.includes(s.name)?'checked':''}>${esc(s.short)}</label>`).join('')}
-<div><button class="btn s" onclick="document.querySelectorAll('.ps').forEach(x=>x.checked=['English','Mathematics'].includes(x.value))">ENG and MTC only</button><button class="btn s" onclick="document.querySelectorAll('.ps').forEach(x=>x.checked=true)">All subjects</button></div>
-<p style="margin:8px 0 0;color:var(--mu)">A learner with a missing mark gets X. A total outside every range gets U.</p>`,'saveDivs()')}
+function openDivs(){const e=CX(),c=e.cfg,d=[...c.divs];while(d.length<5)d.push({});
+const rules=c.push.rules&&c.push.rules.length?c.push.rules:[{to:c.push.to||'2',agg:c.push.agg||9,subs:c.push.subs||['English','Mathematics'],onlyFrom:['1']},{to:'3',agg:9,subs:c.push.subs||['English','Mathematics'],onlyFrom:null},{to:'4',agg:9,subs:c.push.subs||['English','Mathematics'],onlyFrom:null}];
+const r0=rules.find(r=>String(r.to)==='2')||{to:'2',agg:9,subs:['English','Mathematics'],onlyFrom:['1']};
+const r1=rules.find(r=>String(r.to)==='3')||{to:'3',agg:9,subs:[],onlyFrom:null};
+const r2=rules.find(r=>String(r.to)==='4')||{to:'4',agg:9,subs:[],onlyFrom:null};
+const subChecks=(cls,sel)=>c.subjects.map(s=>`<label class="ck"><input type="checkbox" class="${cls}" value="${esc(s.name)}" ${sel.includes(s.name)?'checked':''}>${esc(s.short)}</label>`).join('');
+dlgBox('Divisions and push rules',`<p style="margin:0 0 8px;color:var(--mu)">Give the total aggregates for each division. Example: Division 1 from 4 to 12.</p><table id="dtab"><tr><th>Division</th><th>From T.AGG</th><th>To T.AGG</th></tr>${d.map(drow).join('')}</table><button class="btn s" onclick="document.getElementById('dtab').insertAdjacentHTML('beforeend',drow({}))">+ Add row</button>
+<h2 style="margin-top:14px">Push rules (F9 / aggregate 9 in selected subjects)</h2>
+<div style="border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px"><label class="ck"><input type="checkbox" id="p2on" ${r0.subs&&r0.subs.length?'checked':''}> <b>Push Division 1 → Division 2</b> when aggregate is 9 in selected subjects</label>
+<label style="margin-top:6px">Subjects</label>${subChecks('ps2',r0.subs||[])}</div>
+<div style="border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px"><label class="ck"><input type="checkbox" id="p3on" ${r1.subs&&r1.subs.length?'checked':''}> <b>Push to Division 3</b> when aggregate is 9 in selected subjects</label>
+<label style="margin-top:6px">Subjects</label>${subChecks('ps3',r1.subs||[])}</div>
+<div style="border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px"><label class="ck"><input type="checkbox" id="p4on" ${r2.subs&&r2.subs.length?'checked':''}> <b>Push to Division 4</b> when aggregate is 9 in selected subjects</label>
+<label style="margin-top:6px">Subjects</label>${subChecks('ps4',r2.subs||[])}</div>
+<div><button class="btn s" onclick="document.querySelectorAll('.ps2,.ps3,.ps4').forEach(x=>x.checked=['English','Mathematics'].includes(x.value))">ENG and MTC only (all rules)</button>
+<button class="btn s" onclick="document.querySelectorAll('.ps2,.ps3,.ps4').forEach(x=>x.checked=true)">All subjects (all rules)</button></div>
+<p style="margin:8px 0 0;color:var(--mu)">A learner with a missing mark gets X. A total outside every range gets U. The most severe applicable push is applied.</p>`,'saveDivs()')}
 function saveDivs(){const d=[...document.querySelectorAll('.dd')],f=[...document.querySelectorAll('.df')],t=[...document.querySelectorAll('.dtt')],rows=[];
 for(let i=0;i<d.length;i++){if(d[i].value===''&&f[i].value===''&&t[i].value==='')continue;if(d[i].value===''||f[i].value===''||t[i].value==='')return ferr.textContent='Fill Division, From and To in every row you use';const r={div:d[i].value,from:+f[i].value,to:+t[i].value};if(r.from>r.to)return ferr.textContent='In each row From must not be bigger than To';rows.push(r)}
-const e=CX();e.cfg.divs=rows;e.cfg.push={to:pto.value,agg:+pa.value,subs:[...document.querySelectorAll('.ps:checked')].map(x=>x.value)};saveCfg(e)}
-let SB2=[];
+const e=CX();e.cfg.divs=rows;
+const pick=cls=>[...document.querySelectorAll('.'+cls+':checked')].map(x=>x.value);
+const rules=[];
+if(document.getElementById('p2on').checked){const s=pick('ps2');if(s.length)rules.push({to:'2',agg:9,subs:s,onlyFrom:['1']})}
+if(document.getElementById('p3on').checked){const s=pick('ps3');if(s.length)rules.push({to:'3',agg:9,subs:s,onlyFrom:null})}
+if(document.getElementById('p4on').checked){const s=pick('ps4');if(s.length)rules.push({to:'4',agg:9,subs:s,onlyFrom:null})}
+e.cfg.push={agg:9,to:rules[0]?rules[0].to:'none',subs:rules[0]?rules[0].subs:[],rules};
+saveCfg(e)}
 function openSubs(){SB2=CX().cfg.subjects.map(s=>({...s}));drawSubs()}
-function drawSubs(){mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:88vh;overflow:auto"><h2>Subjects on the MarkSheet</h2><p style="margin:0 0 8px;color:var(--mu)">The four core subjects are compulsory. Add others with a short name. Tick Agg for subjects whose aggregate counts in T.AGG. Use the arrows to change the order.</p>
-<datalist id="sdl">${S.subjects.map(x=>`<option>${esc(x)}`).join('')}</datalist>${SB2.map((s,i)=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><button class="btn s" style="margin:0;padding:4px 8px" onclick="mvS(${i},-1)">▲</button><button class="btn s" style="margin:0;padding:4px 8px" onclick="mvS(${i},1)">▼</button><input class="sn" list="sdl" value="${esc(s.name)}" ${s.core?'readonly':''} style="flex:1;min-width:0" placeholder="Subject"><input class="ss" value="${esc(s.short)}" style="width:68px" placeholder="Short"><label class="ck" style="margin:0"><input type="checkbox" class="sc" ${s.count?'checked':''}>Agg</label>${s.core?'':`<button class="x" onclick="rmS(${i})">✕</button>`}</div>`).join('')}
+function drawSubs(){mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:88vh;overflow:auto"><h2>Subjects on the MarkSheet</h2><p style="margin:0 0 8px;color:var(--mu)">The four core subjects are compulsory. Add others with a short name. Tick Agg for subjects whose aggregate counts in T.AGG. Drag a row by the ☰ handle to change the order, or use the arrows.</p>
+<datalist id="sdl">${S.subjects.map(x=>`<option>${esc(x)}`).join('')}</datalist><div id="slist">${SB2.map((s,i)=>`<div class="srow" draggable="true" data-i="${i}" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;padding:4px;border:1px solid var(--bd);border-radius:6px;cursor:grab" ondragstart="dragS(event,${i})" ondragover="event.preventDefault()" ondrop="dropS(event,${i})"><span style="cursor:grab;user-select:none;padding:0 4px;color:var(--mu)">☰</span><button class="btn s" style="margin:0;padding:4px 8px" onclick="mvS(${i},-1)">▲</button><button class="btn s" style="margin:0;padding:4px 8px" onclick="mvS(${i},1)">▼</button><input class="sn" list="sdl" value="${esc(s.name)}" ${s.core?'readonly':''} style="flex:1;min-width:0" placeholder="Subject"><input class="ss" value="${esc(s.short)}" style="width:68px" placeholder="Short"><label class="ck" style="margin:0"><input type="checkbox" class="sc" ${s.count?'checked':''}>Agg</label>${s.core?'':`<button class="x" onclick="rmS(${i})">✕</button>`}</div>`).join('')}</div>
 <button class="btn s" onclick="addS()">+ Add subject</button><p id="ferr" style="color:var(--bad);margin:8px 0 0;min-height:18px"></p><button class="btn" onclick="saveSubs()">Save</button><button class="btn s" onclick="mdlg.style.display='none'">Cancel</button></div>`;mdlg.style.display='flex'}
+let _dragI=null;function dragS(ev,i){_dragI=i;ev.dataTransfer.effectAllowed='move'}
+function dropS(ev,j){ev.preventDefault();if(_dragI==null||_dragI===j)return;syncS();const item=SB2.splice(_dragI,1)[0];SB2.splice(j,0,item);_dragI=null;drawSubs()}
 function syncS(){const n=[...document.querySelectorAll('.sn')],h=[...document.querySelectorAll('.ss')],c=[...document.querySelectorAll('.sc')];SB2.forEach((s,i)=>{s.name=n[i].value.trim();s.short=h[i].value.trim();s.count=c[i].checked})}
 const mvS=(i,d)=>{syncS();const j=i+d;if(j<0||j>=SB2.length)return;[SB2[i],SB2[j]]=[SB2[j],SB2[i]];drawSubs()},rmS=i=>{syncS();SB2.splice(i,1);drawSubs()},addS=()=>{syncS();SB2.push({name:'',short:'',count:false});drawSubs()};
 function saveSubs(){syncS();if(SB2.some(s=>!s.name||!s.short))return ferr.textContent='Every subject needs a name and a short name';if(new Set(SB2.map(s=>s.name.toLowerCase())).size<SB2.length)return ferr.textContent='A subject is listed twice';const e=CX();e.cfg.subjects=SB2;saveCfg(e)}
@@ -489,7 +681,7 @@ mdlg.innerHTML=`<div class="b" style="max-width:520px;max-height:88vh;overflow:a
 ${H('Getting started',['Open the app address and choose <b>Create account</b>. Type your phone number, the registration code the administrator gave you, and choose a password.','Next time choose <b>Sign in</b> with your phone number and password.','Use the filters at the top of each page (year, term, class, subject, week). The page changes to match.'])}
 ${H('Class teachers and headteachers: learners',['Open <b>Learners</b>. Choose the class and year, then type the names (one per line) or use Quick entry for name and gender.','Use <b>Edit</b> to correct a learner and ✕ to remove one.','Headteachers promote learners with <b>Promote learners</b>: tick the learners and choose the new class and year.'])}
 ${H('Assessments and marks',['Open <b>Assessments</b>, fill the form and press <b>Register assessment</b>, then <b>Add marks</b>.','Tap a mark box, press the numbers, then <b>OK</b>. Use Back and Next to move between learners, or search a name.','<b>Results</b> shows who did and who missed. <b>Performance Report</b>, <b>Progress</b>, <b>Termly &amp; Rank</b> and <b>Analysis</b> give the reports, and each has a Download PDF button.'])}
-${H('Examination MarkSheet',['Open <b>Examination</b> (or press <b>Make examination MarkSheet</b> in Assessments). The class teacher types the examination name and presses <b>Create examination</b>.','Press <b>Set grading</b>. Type From, To and the aggregate for each row. Press <b>+ Add row</b> for more rows.','Press <b>Set divisions and push rule</b>. Type the total aggregates for each division. Choose if a learner with a bad aggregate (for example 9 in ENG or MTC) moves to a lower division.','Press <b>Subjects</b> to add other subjects, change the order and choose which count in T.AGG.','Enter marks in the table. Each subject teacher enters only their own subject; the class teacher can enter all.','Tick <b>Show overall total marks</b> if wanted, then press <b>Download MarkSheet PDF</b>.'])}
+${H('Examination MarkSheet',['Open <b>Examination</b>. The class teacher types the examination name and presses <b>Create examination</b>.','Press <b>Set grading</b>. Type From, To and the aggregate for each row.','Press <b>Set divisions and push ruless</b>. Set division ranges, then enable any of the three push rules: Div 1→2, push to Div 3, or push to Div 4 when a learner scores aggregate 9 (F9) in selected subjects.','Press <b>Subjects</b> to add subjects. Drag rows by the ☰ handle (or use arrows) to change order. Tick Agg for subjects that count in T.AGG.','Enter marks (0 up to the expected marks only). Subject teachers enter only their subject; class teacher can enter all.','Below the marksheet you will see <b>GENERAL ANALYSIS</b> and <b>SUBJECT ANALYSIS</b> (D1–F9). These print with the PDF.','Press <b>Exam Overview</b> for sat numbers, gender split, averages, division counts, learners needing help, and comparison with the previous exam.','Only the administrator can open <b>Setup</b> and <b>Admin</b>.'])}
 ${H('Administrator',['Open <b>Admin</b>. Register a school, then register each person with phone number, role, class and subject. Give them the registration code shown.','Use <b>Teaching</b> to add more classes or subjects to a teacher.'])}
 ${H('Need help?',['Press <b>Contact admin</b> to message the administrator on WhatsApp.'])}
 <button class="btn" onclick="mdlg.style.display='none'">Close</button></div>`;mdlg.style.display='flex'}
