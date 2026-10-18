@@ -3,12 +3,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>LAMPS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<meta name="apple-mobile-web-app-title" content="SCHOOL SHORT NAME">
+<meta name="apple-mobile-web-app-title" content="LAMPS">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" id="fav">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b2a86">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -53,6 +53,7 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-tap-highlig
 <div class="row"><button class="btn s" style="margin:0" onclick="mv(-1)">◀ Back</button><button class="btn s" style="margin:0" onclick="mv(1)">Next ▶</button><button class="btn s" style="margin:0" onclick="absent()">Absent</button><button class="btn s" style="margin:0" onclick="closeD()">Close</button></div></div></div>
 <div id="pdlg"></div><div id="mdlg"></div>
 <script>
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 /* ===== DATABASE SETTINGS: paste your Supabase Project URL and anon public key between the quotes (or leave empty and connect from Setup) ===== */
 const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
 const ADMIN_WHATSAPP='+256789160961';   /* the administrator's WhatsApp number with country code, e.g. 256772123456 */
