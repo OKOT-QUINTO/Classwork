@@ -56,7 +56,7 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-tap-highlig
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
 /* ===== DATABASE SETTINGS: paste your Supabase Project URL and anon public key between the quotes (or leave empty and connect from Setup) ===== */
 const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
-const APP_VER='Version 1-Nov-2026 (report cards + Admin 2)';
+const APP_VER='Version 1-Nov-2026 (report card borders and colours)';
 const ADMIN_WHATSAPP='+256789160961';   /* the administrator's WhatsApp number with country code, e.g. 256772123456 */
 /* ======================================================================================================================================== */
 let VER=0,USER='',NEEDLOGIN=false,NEEDJOIN=false,HASU=true,LM='in',SYNC='Saved',busy=false,again=false;
@@ -692,7 +692,7 @@ const RC_CARDS={
   {k:'sci',n:'SCIENCE',s:'SCI',m:['science','integrated science']},
   {k:'sst',n:'SOCIAL STUDIES',s:'SST',m:['social studies','sst','social studies and religious education']},
   {k:'re',n:'RELIGIOUS EDUCATION',s:'RE',m:RC_REL}]}};
-const RC_FIELDS=[['term','Term'],['year','Year'],['name',"Pupil's name"],['cls','Class'],['age','Age'],['sex','Sex'],['att','Attendance'],['lin','LIN'],
+const RC_FIELDS=[['school_name','School name'],['border_primary','Border: main colour'],['border_accent','Border: accent colour'],['term','Term'],['year','Year'],['name',"Pupil's name"],['cls','Class'],['age','Age'],['sex','Sex'],['att','Attendance'],['lin','LIN'],
  ['mid_marks','Mid-term: marks row'],['mid_aggs','Mid-term: aggregates row'],['mid_tot','Mid-term: TOTAL/AGG'],['mid_div','Mid-term: DIVISION'],
  ['out','End of term: OUT OF'],['sc','End of term: SCORES'],['agg','End of term: AGG'],['cm',"End of term: TEACHER'S COMMENT"],
  ['tout','TOTAL row: OUT OF'],['tsc','TOTAL row: SCORES'],['tagg','TOTAL row: AGG'],['tdiv','TOTAL row: DIVISION'],
@@ -707,10 +707,10 @@ function rcTplOf(){const v=CS().rt||'';if(v==='none')return null;if(v&&RC_TPL[v]
 /* who may open report cards: administrator, headteacher, Director of Studies (all classes) and the class teacher of the class */
 const rcAny=()=>!!ME&&(['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>!t.subject));
 const rcOk=cls=>!!ME&&(['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>t.class_name==cls&&!t.subject));
-const rcCol=()=>{const o={};RC_FIELDS.forEach(f=>o[f[0]]=(RCS.colors&&RCS.colors[f[0]])||RC_INK);return o};
+const rcCol=()=>{const o={};RC_FIELDS.forEach(f=>o[f[0]]=(RCS.colors&&RCS.colors[f[0]])||({school_name:'#000000',border_primary:'#672b88',border_accent:'#d29d35'}[f[0]]||RC_INK));return o};
 const rcDefCard=()=>{const m=String(ctx.cls).match(/\d+/);return m&&+m[0]<=3?'lower':'upper'};
 function rcEff(){const c=RCS.cls||{},xs=XL(),mid=xs.find(x=>/mid/i.test(x.name)),end=xs.find(x=>/end/i.test(x.name))||xs.find(x=>x!==mid);
- return{card:c.card||rcDefCard(),mid:c.mid!==undefined?c.mid:(mid?mid.id:''),end:c.end||(end?end.id:''),map:c.map||{},out:c.out||{},scale:{...RC_DEFSCALE,...(c.scale||{})},req:c.req||{},rl:c.rl||{}}}
+ return{border:c.border||'1',card:c.card||rcDefCard(),mid:c.mid!==undefined?c.mid:(mid?mid.id:''),end:c.end||(end?end.id:''),map:c.map||{},out:c.out||{},scale:{...RC_DEFSCALE,...(c.scale||{})},req:c.req||{},rl:c.rl||{}}}
 async function rcLoad(){const k=rcKey();RCS.loading=true;RCS.err='';
  try{const a=await SB.from('report_settings').select('data').eq('school_id',ctx.sch).eq('kind','colors');if(a.error)throw a.error;
   const rows=[];for(let f=0;;f+=1000){const b=await SB.from('report_settings').select('kind,class_name,learner_id,data').eq('school_id',ctx.sch).eq('year',ctx.year).eq('term',ctx.term).in('class_name',['',ctx.cls]).range(f,f+999);if(b.error)throw b.error;rows.push(...b.data);if(b.data.length<1000)break}
@@ -739,22 +739,43 @@ function rcCard(l,P){const{cs,ee,me,card}=P,lr=RCS.lr[l.id]||{},re=ee?P.re[l.id]
  if(rm){let some=false;card.prog.forEach((k,j)=>{const row=card.rows.find(r=>r.k==k),ix=rcIdx(me,row,cs),c=ix>=0?rm.cells[ix]:null;if(c&&c.v!=null){prog.marks[j]=c.v;prog.aggs[j]=typeof c.a=='number'?c.a:'';some=true}});
   if(some){prog.tot=rm.tagg!=null?rm.tagg:'';prog.div=rm.div&&rm.div!='?'?(rm.div=='X'?'X':'DIV '+rm.div):''}}
  const rq=RC_REQ.map(r=>({l:(cs.rl&&cs.rl[r.k])||r.l,v:lr.req&&lr.req[r.k]!==undefined?lr.req[r.k]:(cs.req[r.k]||'')}));
- return{head:P.head,col:P.col,term:String(ctx.term).replace(/^Term\s*/i,''),year:ctx.year,name:l.name,cls:ctx.cls,age:rcAge(l.dob),sex:l.gender=='Male'?'M':l.gender=='Female'?'F':'',att:lr.att||'',lin:l.lin||'',
+ return{category:cs.card,border:cs.border,head:P.head,col:P.col,term:String(ctx.term).replace(/^Term\s*/i,''),year:ctx.year,name:l.name,cls:ctx.cls,age:rcAge(l.dob),sex:l.gender=='Male'?'M':l.gender=='Female'?'F':'',att:lr.att||'',lin:l.lin||'',
   prog,rows,spare:card.spare,total,ctc:lr.ctc||'',cond:lr.cond||'',req:rq,nb:rcDate(RCS.term.nb),ne:rcDate(RCS.term.ne),htc:lr.htc||''}}
+
+/* Shared vector border geometry: identical in preview and A4 PDF. */
+const RC_BORDERS={lower:['Classic double frame','Rounded celebration','Ribbon corners'],upper:['Classic double frame','Formal stepped frame','Diamond corners']};
+function rcBorderShapes(c){const a=[],main=c.col.border_primary,accent=c.col.border_accent;
+ const rect=(x,y,w,h,color,lw,r=0)=>a.push({type:'rect',x,y,w,h,color,lw,r});
+ const line=(x,y,x2,y2,color,lw)=>a.push({type:'line',x,y,x2,y2,color,lw});
+ const diamond=(x,y,color)=>{line(x,y-2,x+2,y,color,.5);line(x+2,y,x,y+2,color,.5);line(x,y+2,x-2,y,color,.5);line(x-2,y,x,y-2,color,.5)};
+ const lower=c.category==='lower',v=String(c.border||'1');
+ rect(4,4,202,289,main,1.1,v==='2'&&lower?3:0);
+ rect(6.3,6.3,197.4,284.4,accent,.45,v==='2'&&lower?2:0);
+ if(v==='1')rect(8,8,194,281,main,.25);
+ if(v==='2'){
+  if(lower){for(let y=16;y<286;y+=12){a.push({type:'circle',x:5.2,y,r:.65,color:accent,lw:.3});a.push({type:'circle',x:204.8,y,r:.65,color:accent,lw:.3})}}
+  else {rect(8,8,194,281,main,.35);for(const x of [4,206])for(const y of [4,293]){const dx=x===4?1:-1,dy=y===4?1:-1;line(x,y+dy*10,x+dx*10,y+dy*10,accent,.9);line(x+dx*10,y,x+dx*10,y+dy*10,accent,.9)}}
+ }
+ if(v==='3'){for(const x of [5.2,204.8])for(const y of [12,285]){if(lower){line(x,y-4,x,y+4,accent,1.6);line(x-1,y,x+1,y,main,.6)}else diamond(x,y,accent)}for(const y of [5.2,291.8])for(const x of [20,105,190])diamond(x,y,accent)}
+ return a;
+}
+function rcBorderSvg(c){return `<svg aria-hidden="true" viewBox="0 0 210 297" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">${rcBorderShapes(c).map(q=>q.type==='rect'?`<rect x="${q.x}" y="${q.y}" width="${q.w}" height="${q.h}" rx="${q.r}" fill="none" stroke="${q.color}" stroke-width="${q.lw}"/>`:q.type==='circle'?`<circle cx="${q.x}" cy="${q.y}" r="${q.r}" fill="${q.color}"/>`:`<line x1="${q.x}" y1="${q.y}" x2="${q.x2}" y2="${q.y2}" stroke="${q.color}" stroke-width="${q.lw}"/>`).join('')}</svg>`}
+function rcBorderDraw(d,c){for(const q of rcBorderShapes(c)){d.setDrawColor(...hex2(q.color));d.setLineWidth(q.lw);if(q.type==='rect'){if(q.r)d.roundedRect(q.x,q.y,q.w,q.h,q.r,q.r);else d.rect(q.x,q.y,q.w,q.h)}else if(q.type==='circle'){d.setFillColor(...hex2(q.color));d.circle(q.x,q.y,q.r,'F')}else d.line(q.x,q.y,q.x2,q.y2)}}
 
 /* ---- PDF drawing (A4 portrait) ---- */
 function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]);
+ rcBorderDraw(d,c);
  const col=a=>d.setTextColor(a[0],a[1],a[2]);
  const tx=(s,x,y,o={})=>{d.setFont(o.f||'times',o.b?'bold':'normal');d.setFontSize(o.s||10.5);col(o.c||[0,0,0]);d.text(String(s),x,y,o.a?{align:o.a}:undefined)};
  const dots=(x1,x2,y)=>{d.setDrawColor(70,70,70);d.setLineWidth(.25);d.setLineDashPattern([.35,1.1],0);d.line(x1,y,x2,y);d.setLineDashPattern([],0)};
- const fit=(s,x,y,w,k,sz=10.5)=>{s=String(s);if(!s)return;d.setFont('helvetica','normal');let f=sz;d.setFontSize(f);while(f>6&&d.getTextWidth(s)>w){f-=.5;d.setFontSize(f)}col(C(k));d.text(s,x,y)};
- const fld=(lab,x,w,y,val,k)=>{tx(lab,x,y,{b:1});const lw=d.getTextWidth(lab)+1.5;dots(x+lw,x+w,y+.7);fit(val,x+lw+1,y-.3,w-lw-2,k)};
+ const fit=(s,x,y,w,k,sz=10.5,center=false)=>{s=String(s);if(!s)return;d.setFont('helvetica','normal');let f=sz;d.setFontSize(f);while(f>6&&d.getTextWidth(s)>w){f-=.5;d.setFontSize(f)}col(C(k));d.text(s,center?x+w/2:x,y,center?{align:'center'}:undefined)};
+ const fld=(lab,x,w,y,val,k)=>{tx(lab,x,y,{b:1});const lw=d.getTextWidth(lab)+1.5;dots(x+lw,x+w,y+.7);fit(val,x+lw+1,y-.3,w-lw-2,k,10.5,true)};
  const wrap2=(txt,w1,w2,k,x1,y1,x2,y2)=>{txt=String(txt||'').replace(/\s+/g,' ').trim();if(!txt)return;d.setFont('helvetica','normal');
   for(let f=10.5;f>=6.5;f-=.5){d.setFontSize(f);const words=txt.split(' ');let l1='',i=0;while(i<words.length&&d.getTextWidth((l1?l1+' ':'')+words[i])<=w1){l1+=(l1?' ':'')+words[i];i++}
    const rest=words.slice(i).join(' ');if(!rest||d.getTextWidth(rest)<=w2||f==6.5){let r2=rest;while(r2&&d.getTextWidth(r2)>w2)r2=r2.slice(0,-2);col(C(k));d.text(l1,x1,y1);if(r2)d.text(r2,x2,y2);return}}};
  const red=[200,30,45],h=c.head;
  if(h.logo)d.addImage(h.logo,'JPEG',mg,8,33,27.4);
- const cx=h.logo?127:W/2;let y=16;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:'helvetica',b:1,s:ln[1],a:'center'});y+=ln[1]>=15?6.5:5.4});
+ const cx=h.logo?127:W/2;let y=16;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:'helvetica',b:1,s:ln[1],a:'center',c:C('school_name')});y+=ln[1]>=15?6.5:5.4});
  if(h.contact)tx(h.contact,cx,Math.max(y+2,41),{b:1,s:10.5,a:'center'});
  fld('REPORT CARD FOR TERM',mg,104,50,c.term,'term');fld('YEAR',122,R-122,50,c.year,'year');
  fld("PUPIL'S NAME:",mg,132,58,c.name,'name');fld('CLASS:',148,R-148,58,c.cls,'cls');
@@ -767,7 +788,7 @@ function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]);
  y=d.lastAutoTable.finalY+8;tx('END OF TERM',W/2,y,{f:'helvetica',b:1,a:'center',c:red});
  const body=c.rows.map(r=>[String(r.no),{content:r.n,styles:{halign:'left',fontStyle:'bold'}},cell(r.out,'out'),cell(r.sc,'sc'),cell(r.agg,'agg'),cell(r.cm,'cm',{halign:'left',fontSize:8.5})]);
  for(let i=0;i<c.spare;i++)body.push(['','','','','','']);
- body.push(['',{content:'TOTAL',styles:{halign:'left',fontStyle:'bold'}},cell(c.total.out,'tout'),cell(c.total.sc,'tsc'),cell(c.total.agg,'tagg'),cell(c.total.div,'tdiv',{halign:'left',fontSize:8.5})]);
+ body.push(['',{content:'TOTAL',styles:{halign:'left',fontStyle:'bold'}},cell(c.total.out,'tout'),cell(c.total.sc,'tsc'),cell(c.total.agg,'tagg'),cell(c.total.div,'tdiv',{halign:'center',fontSize:8.5})]);
  tab({startY:y+3,head:[['NO.','LEARNING AREA','OUT OF','SCORES','AGG',"TEACHER'S COMMENT"]],body,columnStyles:{0:{cellWidth:11},1:{cellWidth:56},2:{cellWidth:19},3:{cellWidth:19},4:{cellWidth:15}}});
  y=d.lastAutoTable.finalY+9;
  tx("Class teacher's comments",mg,y,{b:1});let lw=d.getTextWidth("Class teacher's comments")+1.5;dots(mg+lw,R,y+.7);dots(mg,R-40,y+8.7);tx('Sign:',R-38,y+8,{b:1});dots(R-27,R,y+8.7);
@@ -790,22 +811,22 @@ const rcPrintOne=id=>{const l=LI().find(x=>x.id==id);if(l)rcPrint([id],rcFn(l.na
 const rcPrintAll=()=>rcPrint(LI().map(l=>l.id),rcFn('ALL'));
 
 /* ---- on-screen preview ---- */
-function rcHtml(c){const k=c.col,ink=x=>`color:${k[x]}`,dl=(v,x,w)=>`<span style="flex:${w||1};border-bottom:1px dotted #333;min-height:18px;padding:0 4px;${ink(x)}">${esc(v)}</span>`,
+function rcHtml(c){const k=c.col,ink=x=>`color:${k[x]}`,dl=(v,x,w)=>`<span style="flex:${w||1};border-bottom:1px dotted #333;min-height:18px;padding:0 4px;text-align:center;${ink(x)}">${esc(v)}</span>`,
  L=t=>`<b style="white-space:nowrap">${t}</b>`,row=(...p)=>`<div style="display:flex;gap:6px;align-items:flex-end;margin:7px 0">${p.join('')}</div>`,
  td=(v,x,al)=>`<td style="${ink(x)};${al?'text-align:'+al:''}">${esc(v)}</td>`,hd=c.head;
  return`<style>.rcp table{border-collapse:collapse;width:100%;margin:4px 0}.rcp th,.rcp td{border:1px solid #000!important;padding:4px;text-align:center;background:#fff!important;color:#000;text-transform:none!important;white-space:normal!important;font-size:12.5px}.rcp th{font-weight:700}</style>
-<div class="rcp" style="background:#fff;color:#000;padding:16px;font-family:'Times New Roman',serif;font-size:13.5px;max-width:700px;margin:auto;border:1px solid #bbb">
-<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px">`:''}<div style="flex:1;text-align:center;font-family:Arial,sans-serif;font-weight:700">${hd.lines.map(l=>`<div style="font-size:${Math.round(l[1]*1.05)}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
+<div class="rcp" style="background:#fff;color:#000;position:relative;padding:26px 38px;min-height:990px;font-family:'Times New Roman',serif;font-size:13.5px;max-width:700px;margin:auto;">${rcBorderSvg(c)}<div style="position:relative">
+<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px">`:''}<div style="flex:1;text-align:center;font-family:Arial,sans-serif;font-weight:700">${hd.lines.map(l=>`<div style="color:${k.school_name};font-size:${Math.round(l[1]*1.05)}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
 ${row(L('REPORT CARD FOR TERM'),dl(c.term,'term',3),L('YEAR'),dl(c.year,'year',2))}${row(L("PUPIL'S NAME:"),dl(c.name,'name',4),L('CLASS:'),dl(c.cls,'cls',1.4))}
 ${row(L('AGE:'),dl(c.age,'age',1),L('SEX:'),dl(c.sex,'sex',1),L('ATTENDANCE:'),dl(c.att,'att',2))}${row(L('LIN'),dl(c.lin,'lin',1))}
 <div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:8px">PROGRESSIVE REPORT<br>MID-TERM</div>
 <table><tr>${c.prog.cols.map(x=>`<th>${esc(x)}</th>`).join('')}<th>TOTAL /AGG</th><th>DIVISION</th></tr><tr>${c.prog.marks.map(v=>td(v,'mid_marks')).join('')}<td></td><td></td></tr><tr>${c.prog.aggs.map(v=>td(v,'mid_aggs')).join('')}${td(c.prog.tot,'mid_tot')}${td(c.prog.div,'mid_div')}</tr></table>
 <div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700">END OF TERM</div>
-<table><tr><th>NO.</th><th>LEARNING AREA</th><th>OUT OF</th><th>SCORES</th><th>AGG</th><th>TEACHER'S COMMENT</th></tr>${c.rows.map(r=>`<tr><td>${r.no}</td><td style="text-align:left;font-weight:700">${esc(r.n)}</td>${td(r.out,'out')}${td(r.sc,'sc')}${td(r.agg,'agg')}${td(r.cm,'cm','left')}</tr>`).join('')}${'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>'.repeat(c.spare)}<tr><td></td><td style="text-align:left;font-weight:700">TOTAL</td>${td(c.total.out,'tout')}${td(c.total.sc,'tsc')}${td(c.total.agg,'tagg')}${td(c.total.div,'tdiv','left')}</tr></table>
+<table><tr><th>NO.</th><th>LEARNING AREA</th><th>OUT OF</th><th>SCORES</th><th>AGG</th><th>TEACHER'S COMMENT</th></tr>${c.rows.map(r=>`<tr><td>${r.no}</td><td style="text-align:left;font-weight:700">${esc(r.n)}</td>${td(r.out,'out')}${td(r.sc,'sc')}${td(r.agg,'agg')}${td(r.cm,'cm','left')}</tr>`).join('')}${'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>'.repeat(c.spare)}<tr><td></td><td style="text-align:left;font-weight:700">TOTAL</td>${td(c.total.out,'tout')}${td(c.total.sc,'tsc')}${td(c.total.agg,'tagg')}${td(c.total.div,'tdiv')}</tr></table>
 ${row(L("Class teacher's comments"),dl(c.ctc,'ctc',1))}${row(L('Sign:'),dl('','ctc',1))}${row(L("Pupil's conduct:"),dl(c.cond,'cond',1))}
 <div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:6px">SCHOOL REQUIREMENTS</div>
 <table><tr>${c.req.map(r=>`<th>${esc(r.l)}</th>`).join('')}</tr><tr>${c.req.map(r=>td(r.v,'req')).join('')}</tr></table>
-${row(L('Next term begins on:'),dl(c.nb,'nb',1),L('Ends on:'),dl(c.ne,'ne',1))}${row(L("Head Teacher's Comments:"),dl(c.htc,'htc',1))}${row(L('SIGN:'),dl('','htc',1))}</div>`}
+${row(L('Next term begins on:'),dl(c.nb,'nb',1),L('Ends on:'),dl(c.ne,'ne',1))}${row(L("Head Teacher's Comments:"),dl(c.htc,'htc',1))}${row(L('SIGN:'),dl('','htc',1))}</div></div>`}
 function rcPreview(id){if(!curRcOk())return;const l=LI().find(x=>x.id==id);if(!l)return;const P=rcPre();
  showRep('Report card: '+l.name,rcHtml(rcCard(l,P)),`rcPrintOne('${id}')`,780,'portrait')}
 
@@ -825,6 +846,7 @@ function vReport(){const head=`<div class="card"><h2>Report Cards</h2>${rcBar()}
  return head+`<p style="margin:0 0 8px;color:var(--mu)"><b>Step 1:</b> set up the card below (class teacher or Director of Studies). <b>Step 2:</b> type each learner's comments with <b>Edit</b>. <b>Step 3:</b> preview and print. Marks come from the examination marksheet.</p></div>
 <div class="card w"><h2>Step 1: report card settings for ${esc(ctx.cls)}</h2>
 <div class="g"><div><label>Card design</label><select onchange="rcS('card',this.value)">${Object.keys(RC_CARDS).map(k=>`<option value="${k}" ${k==cs.card?'selected':''}>${RC_CARDS[k].name}</option>`).join('')}</select></div>
+<div><label>Page border design</label><select onchange="rcS('border',this.value)">${RC_BORDERS[cs.card].map((n,i)=>`<option value="${i+1}" ${String(cs.border)==String(i+1)?'selected':''}>${i+1}. ${n}</option>`).join('')}</select><small>Three designs per category. Set colours below; preview before printing.</small></div>
 <div><label>Mid-term results (progressive report)</label><select onchange="rcS('mid',this.value)">${xo(cs.mid,'None (leave blank)')}</select></div>
 <div><label>End of term results (main table)</label><select onchange="rcS('end',this.value)">${xo(cs.end)}</select></div></div>
 <h3 style="margin:12px 0 4px;font-size:15px;color:var(--ac)">Learning areas: marksheet subject and OUT OF</h3>
@@ -840,11 +862,11 @@ function vReport(){const head=`<div class="card"><h2>Report Cards</h2>${rcBar()}
 <div class="card w"><h2>Steps 2 and 3: learners (${L.length})</h2><div style="margin-bottom:8px"><button class="btn" onclick="rcPrintAll()">Print all in one PDF</button></div>
 <table><tr><th>No.</th><th>Learner</th><th>LIN</th><th>Attendance</th><th>Comments</th><th></th></tr>${L.map((l,i)=>{const r=RCS.lr[l.id]||{};return`<tr><td>${i+1}</td><td style="text-align:left">${esc(l.name)}</td><td>${esc(l.lin||'')}</td><td>${esc(r.att||'')}</td><td>${r.ctc&&r.htc?'✓ both':r.ctc?'class teacher':r.htc?'head teacher':'–'}</td><td style="white-space:nowrap"><button class="btn" style="margin:0 4px 0 0;padding:4px 10px" onclick="rcEdit('${l.id}')">Edit</button><button class="btn s" style="margin:0 4px 0 0;padding:4px 10px" onclick="rcPreview('${l.id}')">Preview</button><button class="btn s" style="margin:0;padding:4px 10px" onclick="rcPrintOne('${l.id}')">Print</button></td></tr>`}).join('')||'<tr><td colspan="6">No learners in this class and year.</td></tr>'}</table></div>`}
 async function rcSaveSettings(){const e=rcEff(),ok1=await rcSave('class',{...RCS.cls,card:e.card,mid:e.mid,end:e.end}),ok2=await rcSave('term',RCS.term);if(ok1&&ok2){RCS.cls={...RCS.cls,card:e.card,mid:e.mid,end:e.end};alert('Settings saved.');render()}}
-function rcColors(){const c=rcCol();mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:90vh;overflow:auto"><h2>Set ink colors</h2><p style="margin:0 0 8px;color:var(--mu)">Choose the color used to write each item on the report card. These colors apply to all report cards of the school.</p><div class="g" style="grid-template-columns:1fr 1fr">${RC_FIELDS.map(f=>`<div style="display:flex;align-items:center;gap:8px"><input type="color" id="cl_${f[0]}" value="${c[f[0]]}" style="width:46px;height:34px;padding:0;flex:none"><label style="margin:0">${f[1]}</label></div>`).join('')}</div>
+function rcColors(){const c=rcCol();mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:90vh;overflow:auto"><h2>School name, border and ink colours</h2><p style="margin:0 0 8px;color:var(--mu)">Choose the color used to write each item on the report card. These colors apply to all report cards of the school.</p><div class="g" style="grid-template-columns:1fr 1fr">${RC_FIELDS.map(f=>`<div style="display:flex;align-items:center;gap:8px"><input type="color" id="cl_${f[0]}" value="${c[f[0]]}" style="width:46px;height:34px;padding:0;flex:none"><label style="margin:0">${f[1]}</label></div>`).join('')}</div>
 <button class="btn" style="margin-top:10px" onclick="rcColorsSave()">Save colors</button><button class="btn s" onclick="RC_FIELDS.forEach(f=>document.getElementById('cl_'+f[0]).value=RC_INK)">Reset to blue ink</button><button class="btn s" onclick="mdlg.style.display='none'">Close</button></div>`;mdlg.style.display='flex'}
 async function rcColorsSave(){const o={};RC_FIELDS.forEach(f=>o[f[0]]=document.getElementById('cl_'+f[0]).value);if(await rcSave('colors',o)){RCS.colors=o;mdlg.style.display='none';render()}}
 function rcEdit(id){if(!curRcOk())return;const L=LI(),i=L.findIndex(x=>x.id==id),l=L[i];if(!l)return;const r=RCS.lr[id]||{},cs=rcEff();
- mdlg.innerHTML=`<div class="b" style="max-width:520px;max-height:92vh;overflow:auto"><h2>${esc(l.name)}</h2><div class="g" style="grid-template-columns:1fr 1fr"><div><label>LIN (Learner Identification Number)</label><input id="re_lin" value="${esc(l.lin||'')}"></div><div><label>Attendance</label><input id="re_att" value="${esc(r.att||'')}" placeholder="e.g. 58 / 60"></div></div>
+ mdlg.innerHTML=`<div class="b" style="max-width:520px;max-height:92vh;overflow:auto"><h2>${esc(l.name)}</h2><div class="g" style="grid-template-columns:1fr 1fr"><div><label>LIN (Learner Identification Number)</label><input id="re_lin" readonly title="Fetched automatically from learner details. Edit it under Learners." value="${esc(l.lin||'')}"></div><div><label>Attendance</label><input id="re_att" value="${esc(r.att||'')}" placeholder="e.g. 58 / 60"></div></div>
 <label style="margin-top:8px">Class teacher's comments</label><textarea id="re_ctc" rows="3">${esc(r.ctc||'')}</textarea><label>Pupil's conduct</label><textarea id="re_cond" rows="2">${esc(r.cond||'')}</textarea><label>Head teacher's comments</label><textarea id="re_htc" rows="3">${esc(r.htc||'')}</textarea>
 <label style="margin-top:6px">School requirements for this child</label><div class="g" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${RC_REQ.map(q=>`<div><label>${esc(cs.rl[q.k]||q.l)}</label><input id="re_q_${q.k}" value="${esc(r.req&&r.req[q.k]!==undefined?r.req[q.k]:(cs.req[q.k]||''))}"></div>`).join('')}</div>
 <p id="re_err" style="color:var(--bad);min-height:18px;margin:6px 0 0"></p><button class="btn" onclick="rcEditSave('${id}',0)">Save</button><button class="btn" onclick="rcEditSave('${id}',1)" ${i>=L.length-1?'disabled':''}>Save &amp; next learner</button><button class="btn s" onclick="mdlg.style.display='none';render()">Close</button></div>`;mdlg.style.display='flex'}
@@ -975,7 +997,7 @@ mdlg.innerHTML=`<div class="b" style="max-width:520px;max-height:88vh;overflow:a
 ${H('Getting started',['Open the app address and choose <b>Create account</b>. Type your phone number, the registration code the administrator gave you, and choose a password.','Next time choose <b>Sign in</b> with your phone number and password.','Use the filters at the top of each page (year, term, class, subject, week). The page changes to match.'])}
 ${H('Class teachers and headteachers: learners',['Open <b>Learners</b>. Choose the class and year, then type the names (one per line) or use Quick entry for name and gender.','Use <b>Edit</b> to correct a learner and ✕ to remove one.','Headteachers promote learners with <b>Promote learners</b>: tick the learners and choose the new class and year.'])}
 ${H('Assessments and marks',['Open <b>Assessments</b>, fill the form and press <b>Register assessment</b>, then <b>Add marks</b>.','Tap a mark box, press the numbers, then <b>OK</b>. Use Back and Next to move between learners, or search a name.','<b>Results</b> shows who did and who missed. <b>Performance Report</b>, <b>Progress</b>, <b>Termly &amp; Rank</b> and <b>Analysis</b> give the reports, and each has a Download PDF button.'])}
-${H('Report cards',['Open <b>Report Cards</b> (class teacher of the class, Director of Studies, headteacher and administrator). <b>Step 1:</b> under settings choose the card design, the <b>Mid-term</b> and <b>End of term</b> examinations, the OUT OF for each learning area, the comment for each aggregate, the school requirements and the next term dates, then press <b>Save settings</b>. Press <b>Set colors</b> to choose the ink color of each item.','<b>Step 2:</b> for each learner press <b>Edit</b> to type the LIN, attendance, class teacher comment, conduct, head teacher comment and any change to that child school requirements. <b>Save &amp; next learner</b> moves down the list.','<b>Step 3:</b> <b>Preview</b> shows the card, <b>Print</b> makes one learner PDF, and <b>Print all in one PDF</b> makes the whole class.','The administrator chooses in <b>Setup</b> which school uses which report card template. A school without a template sees the message that its template is not yet ready.'])}
+${H('Report cards',['Open <b>Report Cards</b> (class teacher of the class, Director of Studies, headteacher and administrator). <b>Step 1:</b> under settings choose the card design, the <b>Mid-term</b> and <b>End of term</b> examinations, the OUT OF for each learning area, the comment for each aggregate, the school requirements and the next term dates, then press <b>Save settings</b>. Press <b>Set colors</b> to choose the ink color of each item.','<b>Step 2:</b> for each learner press <b>Edit</b> to type the attendance, class teacher comment, conduct, head teacher comment and any change to that child school requirements. <b>Save &amp; next learner</b> moves down the list.','<b>Step 3:</b> <b>Preview</b> shows the card, <b>Print</b> makes one learner PDF, and <b>Print all in one PDF</b> makes the whole class.','The administrator chooses in <b>Setup</b> which school uses which report card template. A school without a template sees the message that its template is not yet ready.'])}
 ${H('Examination MarkSheet',['Open <b>Examination</b>. The class teacher types the examination name and presses <b>Create examination</b>.','Press <b>Set grading</b>. Type From, To and the aggregate for each row.','Press <b>Set divisions and push ruless</b>. Set division ranges, then enable any of the three push rules: Div 1→2, push to Div 3, or push to Div 4 when a learner scores aggregate 9 (F9) in selected subjects.','When you create an examination, first <b>choose its subjects</b> from the school list (or add another). For each subject tick <b>Aggregate</b> (counts in total aggregate and division), <b>Average</b> and <b>Total marks</b>. Press <b>Subjects</b> later to add or remove subjects, change the ticks, or reorder them by the ☰ handle.','Enter marks in the table, or press <b>Enter with number pad</b>: search a learner name, tap it, and boxes for all the subjects appear. Press the numbers, then <b>OK ➜</b> to save and move to the next subject. Subject teachers enter only their own subject.','Tick <b>Show overall total marks</b> and <b>Show average mark</b> to add those columns to the marksheet.','The marksheet and its PDF now show only the marks. Use the buttons above it for the analyses (each opens a page you can download as a PDF): <b>Grading &amp; Division Scale</b>, <b>General &amp; Subject Analysis</b> (with TOTAL column) and <b>Gender &amp; Division Analysis</b>. These three print in landscape.','Press <b>Exam Overview</b> for a portrait report with doughnut charts, minimum and maximum marks, averages, subject comparison, aggregate distribution for every subject, gender performance and comparison with the previous exam.','Press <b>Learners Needing Help</b> to list, subject by subject, the learners with weak aggregates (choose F9 only, P8 and F9, P7 and below, or C6 and below).','Only the administrator can open <b>Setup</b> and <b>Admin</b>.'])}
 ${H('Administrator',['Open <b>Admin</b>. Register a school, then register each person with phone number, role, class and subject. Give them the registration code shown.','Use <b>Teaching</b> to add more classes or subjects to a teacher.'])}
 ${H('Need help?',['Press <b>Contact admin</b> to message the administrator on WhatsApp.'])}
