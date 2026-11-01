@@ -1,9 +1,5 @@
-/* Minimal service worker: makes the app installable. It always fetches fresh files from the internet first (never from the browser's old copy), so updates show at once. */
-const CACHE='analyser-v2';
-self.addEventListener('install',e=>{self.skipWaiting()});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',e=>{
-  const r=e.request;
-  if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
-  e.respondWith(fetch(r,{cache:'no-store'}).then(res=>{const c=res.clone();caches.open(CACHE).then(k=>k.put(r,c)).catch(()=>{});return res}).catch(()=>caches.match(r).then(m=>m||caches.match('./'))));
-});
+/* EXPORT UPDATE V4: network-first app pages, refreshed offline fallback. */
+const CACHE='lamps-export-v4-'+self.registration.scope;
+self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.add(new Request(new URL('index.html',self.registration.scope),{cache:'reload'}));await self.skipWaiting()})())});
+self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())});
+self.addEventListener('fetch',event=>{const request=event.request,url=new URL(request.url);if(request.method!=='GET'||url.origin!==self.location.origin||!url.href.startsWith(self.registration.scope))return;if(request.mode!=='navigate'&&!/\.(?:html|css|js|png|jpg|jpeg|svg|ico|webmanifest)$/.test(url.pathname))return;event.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(request,{cache:'no-cache'});if(response.ok)await cache.put(request,response.clone());return response}catch(error){const cached=await cache.match(request);if(cached)return cached;if(request.mode==='navigate'){const home=await cache.match(new URL('index.html',self.registration.scope));if(home)return home}throw error}})())});

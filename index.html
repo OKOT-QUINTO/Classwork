@@ -53,10 +53,10 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-tap-highlig
 <div class="row"><button class="btn s" style="margin:0" onclick="mv(-1)">◀ Back</button><button class="btn s" style="margin:0" onclick="mv(1)">Next ▶</button><button class="btn s" style="margin:0" onclick="absent()">Absent</button><button class="btn s" style="margin:0" onclick="closeD()">Close</button></div></div></div>
 <div id="pdlg"></div><div id="mdlg"></div>
 <script>
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}));
 /* ===== DATABASE SETTINGS: paste your Supabase Project URL and anon public key between the quotes (or leave empty and connect from Setup) ===== */
 const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
-const APP_VER='Version 1-Nov-2026 (report card borders and colours)';
+const APP_VER='EXPORT UPDATE V4 · 1-Nov-2026 · CSV + School PDF archive';
 const ADMIN_WHATSAPP='+256789160961';   /* the administrator's WhatsApp number with country code, e.g. 256772123456 */
 /* ======================================================================================================================================== */
 let VER=0,USER='',NEEDLOGIN=false,NEEDJOIN=false,HASU=true,LM='in',SYNC='Saved',busy=false,again=false;
@@ -102,7 +102,7 @@ const O=(arr,sel)=>arr.map(x=>`<option ${x==sel?'selected':''}>${esc(x)}</option
 const PS=()=>ctx.s||subs()[0]||'';
 
 function render(){if(NEEDLOGIN||NEEDJOIN)return loginView();document.getElementById('nav').innerHTML=TABS.map((t,i)=>[t,i]).sort((a,b)=>ORD.indexOf(a[1])-ORD.indexOf(b[1])).map(([t,i])=>!VIS(i)?'':`<button class="${i==tab?'on':''}" onclick="${i==13?'rcOpen()':`tab=${i};render()`}">${t}</button>`).join('')+`<button onclick="help()">How to use</button>${contactBtns()}`;
-const c=CS();ht.textContent=c.name||'Exam Analysis System';hs.innerHTML=esc(`Headteacher's contact: ${c.hc||'-'} · Academic year ${ctx.year} · ${fd(iso(new Date()))} · ${APP_VER}`)+(SB?(USER?` · ${esc(USER)} · <a href="#" onclick="logout();return false" style="color:#fff;text-decoration:underline">Sign out</a>`:'')+` · <span id="sy">${SYNC}</span>`:' · Local mode (not connected to a database)');m.innerHTML=[vDash,vLearners,vAsg,vEnter,vRes,vRep,vProg,vTerm,vAn,vSearch,vSetup,vAdmin,vExam,vReport][tab]()}
+const c=CS();ht.textContent=c.name||'Exam Analysis System';hs.innerHTML=esc(`Headteacher's contact: ${c.hc||'-'} · Academic year ${ctx.year} · ${fd(iso(new Date()))} · ${APP_VER}`)+(SB?(USER?` · ${esc(USER)} · <a href="#" onclick="logout();return false" style="color:#fff;text-decoration:underline">Sign out</a>`:'')+` · <span id="sy">${SYNC}</span>`:' · Local mode (not connected to a database)');m.innerHTML=[vDash,vLearners,vAsg,vEnter,vRes,vRep,vProg,vTerm,vAn,vSearch,vSetup,vAdmin,vExam,vReport][tab]();addExportButtons(m)}
 async function pdf(title,meta,head,rows,fn,o={}){try{const J=window.jspdf;if(!J)return alert('PDF library did not load. Check your internet connection.');const d=new J.jsPDF({orientation:o.land?'landscape':'portrait'}),W=d.internal.pageSize.width,H=d.internal.pageSize.height;
 const bh=o.sub?38:30;d.setFillColor(91,42,134);d.rect(0,0,W,bh,'F');d.setTextColor(255);d.setFont('helvetica','bold');d.setFontSize(o.sub?24:21);d.text(CS().name||'School',W/2,14,{align:'center'});if(o.sub){d.setFontSize(13);d.text(o.sub,W/2,23,{align:'center'});d.setFontSize(14);d.text(title.toUpperCase(),W/2,32,{align:'center'})}else{d.setFontSize(13);d.text(title.toUpperCase(),W/2,24,{align:'center'})}d.setFontSize(9);d.text('Printed: '+fd(iso(new Date())),W-14,26,{align:'right'});
 d.setTextColor(20);d.setFontSize(11);const ml=meta.flatMap(x=>d.splitTextToSize(x,W-28));ml.forEach((x,i)=>d.text(x,14,bh+10+i*6.5));
@@ -113,8 +113,7 @@ let y=d.lastAutoTable.finalY+9;(o.notes||[]).forEach(n=>{const t=d.splitTextToSi
 (o.extraTables||[]).forEach(tb=>{if(y>H-40){d.addPage();y=18}d.setFontSize(13);d.setFont('helvetica','bold');d.setTextColor(91,42,134);d.text(tb.title,W/2,y,{align:'center'});y+=6;
 d.autoTable({startY:y,head:[tb.head],body:tb.body,styles:{fontSize:9,cellPadding:2,textColor:20},headStyles:{fillColor:[91,42,134],textColor:255,fontSize:9.5},alternateRowStyles:{fillColor:[240,233,248]}});y=d.lastAutoTable.finalY+10});
 if(o.foot){d.setFontSize(10);d.text(`Headteacher's contact: ${CS().hc||''}`,14,H-8)}
-fn=uniq(fn);const blob=d.output('blob');let dl=null;try{dl=await claude.use('downloads')}catch(e){}
-if(dl)await dl.save({filename:fn,data:blob});else d.save(fn)}catch(e){if(e&&e.code!='declined')alert('Could not save PDF: '+(e.message||e))}}
+await pdfSave(d,fn)}catch(e){if(e&&e.code!='declined')alert('Could not save PDF: '+(e.message||e))}}
 const cl=()=>`Class: ${ctx.cls}   Term: ${ctx.term}   Academic year: ${ctx.year}`;
 const WEL=`<div class="card"><h2>Welcome</h2><ol style="margin:0;padding-left:20px;line-height:1.9"><li><b>Setup:</b> enter LAMPS, headteacher and contact, and the academic year.</li><li><b>Learners:</b> choose the class, then add learners (quick entry takes name and gender only).</li><li><b>Assessments:</b> register each assignment with all its details.</li><li><b>Enter Marks:</b> pick the class and assessment, then click a mark box.</li><li><b>Results, Progress, Termly &amp; Rank, Analysis:</b> view the reports and download PDFs.</li></ol></div>`;
 function vDash(){const L=LI(),A=FA();const rows=L.map(l=>({l,...stats(l,A)})).sort((a,b)=>(b.avg??-1)-(a.avg??-1));
@@ -325,7 +324,7 @@ if(!S.schools.find(x=>x.id==ctx.sch))ctx.sch=ME.school_id||S.schools[0]?.id||'';
 if(!S.years.includes(ctx.year))ctx.year=S.years[S.years.length-1]||'';if(!vclasses().includes(ctx.cls))ctx.cls=vclasses()[0]||'';return true}
 async function boot(){if(!SB){m.innerHTML='<div class="card"><h2>Not connected</h2>This copy of the app has no database settings. Put the Supabase URL and key at the top of index.html.</div>';return}
 try{const g=await SB.auth.getSession();if(!g.data.session){NEEDLOGIN=true;render();return}await loadAll();render()}catch(e){alert('Could not load data: '+(e.message||e));render()}}
-async function refresh(){if(!SB||NEEDLOGIN||NEEDJOIN||!ME||['dlg','pdlg','mdlg'].some(i=>document.getElementById(i).style.display=='flex')||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;try{if(await loadAll())render()}catch(e){}}
+async function refresh(){if(EXPORT_RUN||!SB||NEEDLOGIN||NEEDJOIN||!ME||['dlg','pdlg','mdlg'].some(i=>document.getElementById(i).style.display=='flex')||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;try{if(await loadAll())render()}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 function setC(k,v){ctx[k]=v;ctx.a=ctx.s=ctx.wk=ctx.x='';ctx.pk=0;ctx.np=[];ctx.ptc=ctx.pty=0;if(k=='sch'){applySchool();ctx.year=S.years[S.years.length-1]||'';ctx.cls=vclasses()[0]||''}render()}
 function CA(){const l=FA();const a=l.find(x=>x.id==ctx.a)||l[l.length-1];ctx.a=a?.id;return a}
@@ -512,7 +511,7 @@ return['DIV '+r.div,r.from,r.to,notes.join('; ')]})}
 function tblHtml(head,body,o={}){const cell=c=>typeof c=='object'&&c!==null?c:{content:c},lf=o.left||[0],last=body[body.length-1];
 return`<table style="${o.w?'width:'+o.w:'width:100%'};text-align:center">${head.map(r=>`<tr>${r.map(c=>{c=cell(c);return`<th style="text-align:center" colspan="${c.colSpan||1}" rowspan="${c.rowSpan||1}">${esc(c.content)}</th>`}).join('')}</tr>`).join('')}${body.map(r=>`<tr>${r.map((c,i)=>`<td style="text-align:${lf.includes(i)?'left':'center'}${i==0&&lf.includes(0)?';font-weight:700':''}${(o.wrap||[]).includes(i)?';white-space:normal;min-width:230px':''}${o.lastBold&&r===last?';font-weight:700;background:var(--tint)':''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`}
 const h3=t=>`<div style="font-weight:700;color:var(--ac);text-align:center;margin:12px 0 5px;font-size:15px">${esc(t)}</div>`;
-function showRep(title,inner,pdfCall,w,lab){mdlg.innerHTML=`<div class="b" style="max-width:${w||1100}px;max-height:90vh;overflow:auto"><h2>${esc(title)}</h2><div style="overflow-x:auto;font-size:13.5px">${inner}</div><button class="btn" onclick="${pdfCall}">Download PDF (${lab||'landscape'})</button><button class="btn s" onclick="mdlg.style.display='none'">Close</button></div>`;mdlg.style.display='flex'}
+function showRep(title,inner,pdfCall,w,lab){mdlg.innerHTML=`<div class="b" style="max-width:${w||1100}px;max-height:90vh;overflow:auto"><h2>${esc(title)}</h2><div style="overflow-x:auto;font-size:13.5px">${inner}</div><button class="btn" onclick="${pdfCall}">Download PDF (${lab||'landscape'})</button><button class="btn s" onclick="mdlg.style.display='none'">Close</button></div>`;addExportButtons(mdlg);mdlg.style.display='flex'}
 const repTop=e=>`<div style="text-align:center;margin-bottom:6px"><div style="font-size:20px;font-weight:700;color:var(--ac)">${esc(CS().name)}</div><div>${esc(e.term)}, Academic year ${esc(e.year)}</div><div style="font-weight:700">${esc(e.name)} ${esc(e.cls)}</div></div>`;
 
 /* ---- shared table definitions (screen and PDF use the same data) ---- */
@@ -538,7 +537,7 @@ showRep('Analysis by gender and by division',repTop(e)+h3('ANALYSIS BY GENDER AN
 
 /* ---- PDF helpers ---- */
 function pdfBand(d,W,title,sub){d.setFillColor(91,42,134);d.rect(0,0,W,30,'F');d.setTextColor(255);d.setFont('helvetica','bold');d.setFontSize(20);d.text(CS().name||'School',W/2,11,{align:'center'});d.setFontSize(12);d.text(sub,W/2,18,{align:'center'});d.setFontSize(13);d.text(title.toUpperCase(),W/2,26,{align:'center'});d.setFontSize(8.5);d.text('Printed: '+fd(iso(new Date())),W-10,26,{align:'right'});d.setTextColor(20)}
-async function pdfSave(d,fn){fn=uniq(fn.replace(/\s+/g,'_'));const blob=d.output('blob');let dl=null;try{dl=await claude.use('downloads')}catch(x){}if(dl)await dl.save({filename:fn,data:blob});else d.save(fn)}
+async function pdfSave(d,fn){if(EXPORT_RUN){captureExport(d,fn);return}fn=uniq(fn.replace(/\s+/g,'_'));const blob=d.output('blob');let dl=null;try{dl=await claude.use('downloads')}catch(x){}if(dl)await dl.save({filename:fn,data:blob});else d.save(fn)}
 const fnOf=(e,t)=>`${t}_${e.name}_${e.cls}_${e.term}_${e.year}.pdf`;
 /* landscape analysis page: sections = [[table,...]] ; tables inside one section sit side by side when they have x and w */
 async function pdfLand(e,title,secs,fn){try{const J=window.jspdf;if(!J)return alert('PDF library did not load. Check your internet connection.');
@@ -705,8 +704,8 @@ const rcN=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 const RC_TPL={souvenir:{label:'Souvenir Mixed Nursery Primary & Vocational Training School'}};
 function rcTplOf(){const v=CS().rt||'';if(v==='none')return null;if(v&&RC_TPL[v])return v;return String(CS().name||'').toLowerCase().includes('souvenir')?'souvenir':null}
 /* who may open report cards: administrator, headteacher, Director of Studies (all classes) and the class teacher of the class */
-const rcAny=()=>!!ME&&(['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>!t.subject));
-const rcOk=cls=>!!ME&&(['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>t.class_name==cls&&!t.subject));
+const rcAny=()=>!!ME&&(isA2()||['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>!t.subject));
+const rcOk=cls=>!!ME&&(isA2()||['admin','headteacher','dos'].includes(ME.role)||TEACH.some(t=>t.class_name==cls&&!t.subject));
 const rcCol=()=>{const o={};RC_FIELDS.forEach(f=>o[f[0]]=(RCS.colors&&RCS.colors[f[0]])||({school_name:'#000000',border_primary:'#672b88',border_accent:'#d29d35'}[f[0]]||RC_INK));return o};
 const rcDefCard=()=>{const m=String(ctx.cls).match(/\d+/);return m&&+m[0]<=3?'lower':'upper'};
 function rcEff(){const c=RCS.cls||{},xs=XL(),mid=xs.find(x=>/mid/i.test(x.name)),end=xs.find(x=>/end/i.test(x.name))||xs.find(x=>x!==mid);
@@ -743,12 +742,23 @@ function rcCard(l,P){const{cs,ee,me,card}=P,lr=RCS.lr[l.id]||{},re=ee?P.re[l.id]
   prog,rows,spare:card.spare,total,ctc:lr.ctc||'',cond:lr.cond||'',req:rq,nb:rcDate(RCS.term.nb),ne:rcDate(RCS.term.ne),htc:lr.htc||''}}
 
 /* Shared vector border geometry: identical in preview and A4 PDF. */
-const RC_BORDERS={lower:['Classic double frame','Rounded celebration','Ribbon corners'],upper:['Classic double frame','Formal stepped frame','Diamond corners']};
+const RC_BORDERS={lower:['Classic double frame','Rounded celebration','Ribbon corners','Souvenir triangles','Souvenir twisted lines 2','Souvenir twisted lines 1'],upper:['Classic double frame','Formal stepped frame','Diamond corners','Souvenir triangles','Souvenir twisted lines 2','Souvenir twisted lines 1']};
 function rcBorderShapes(c){const a=[],main=c.col.border_primary,accent=c.col.border_accent;
  const rect=(x,y,w,h,color,lw,r=0)=>a.push({type:'rect',x,y,w,h,color,lw,r});
  const line=(x,y,x2,y2,color,lw)=>a.push({type:'line',x,y,x2,y2,color,lw});
  const diamond=(x,y,color)=>{line(x,y-2,x+2,y,color,.5);line(x+2,y,x,y+2,color,.5);line(x,y+2,x-2,y,color,.5);line(x-2,y,x,y-2,color,.5)};
  const lower=c.category==='lower',v=String(c.border||'1');
+ if(['4','5','6'].includes(v)){
+  // Recreate the three Word art-border patterns as scalable coloured vectors.
+  rect(3.5,3.5,203,290,main,.35);rect(8,8,194,281,accent,.35);
+  const edge=(length,point)=>{
+   if(v==='4'){const step=4;for(let t=0;t+step<=length;t+=step){const p=point(t,0),q=point(t+step/2,2.8),r=point(t+step,0);line(...p,...q,main,.55);line(...q,...r,main,.55);line(...r,...p,main,.4)}}
+   else {const strands=v==='5'?3:2,step=.6;for(let j=0;j<strands;j++){let prev=point(0,1.6+1.35*Math.sin(j*2*Math.PI/strands));for(let t=step;t<=length;t+=step){const next=point(t,1.6+1.35*Math.sin(t*Math.PI/3+j*2*Math.PI/strands));line(...prev,...next,j%2?accent:main,.38);prev=next}}}
+  };
+  edge(198,(t,n)=>[6+t,4.4+n]);edge(198,(t,n)=>[6+t,292.6-n]);
+  edge(285,(t,n)=>[4.4+n,6+t]);edge(285,(t,n)=>[205.6-n,6+t]);
+  return a;
+ }
  rect(4,4,202,289,main,1.1,v==='2'&&lower?3:0);
  rect(6.3,6.3,197.4,284.4,accent,.45,v==='2'&&lower?2:0);
  if(v==='1')rect(8,8,194,281,main,.25);
@@ -774,8 +784,8 @@ function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]);
   for(let f=10.5;f>=6.5;f-=.5){d.setFontSize(f);const words=txt.split(' ');let l1='',i=0;while(i<words.length&&d.getTextWidth((l1?l1+' ':'')+words[i])<=w1){l1+=(l1?' ':'')+words[i];i++}
    const rest=words.slice(i).join(' ');if(!rest||d.getTextWidth(rest)<=w2||f==6.5){let r2=rest;while(r2&&d.getTextWidth(r2)>w2)r2=r2.slice(0,-2);col(C(k));d.text(l1,x1,y1);if(r2)d.text(r2,x2,y2);return}}};
  const red=[200,30,45],h=c.head;
- if(h.logo)d.addImage(h.logo,'JPEG',mg,8,33,27.4);
- const cx=h.logo?127:W/2;let y=16;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:'helvetica',b:1,s:ln[1],a:'center',c:C('school_name')});y+=ln[1]>=15?6.5:5.4});
+ if(h.logo)d.addImage(h.logo,'JPEG',mg+5,13,33,27.4);
+ const cx=h.logo?127:W/2;let y=17;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:'helvetica',b:1,s:ln[1]+.5,a:'center',c:C('school_name')});y+=ln[1]>=15?6.5:5.4});
  if(h.contact)tx(h.contact,cx,Math.max(y+2,41),{b:1,s:10.5,a:'center'});
  fld('REPORT CARD FOR TERM',mg,104,50,c.term,'term');fld('YEAR',122,R-122,50,c.year,'year');
  fld("PUPIL'S NAME:",mg,132,58,c.name,'name');fld('CLASS:',148,R-148,58,c.cls,'cls');
@@ -816,7 +826,7 @@ function rcHtml(c){const k=c.col,ink=x=>`color:${k[x]}`,dl=(v,x,w)=>`<span style
  td=(v,x,al)=>`<td style="${ink(x)};${al?'text-align:'+al:''}">${esc(v)}</td>`,hd=c.head;
  return`<style>.rcp table{border-collapse:collapse;width:100%;margin:4px 0}.rcp th,.rcp td{border:1px solid #000!important;padding:4px;text-align:center;background:#fff!important;color:#000;text-transform:none!important;white-space:normal!important;font-size:12.5px}.rcp th{font-weight:700}</style>
 <div class="rcp" style="background:#fff;color:#000;position:relative;padding:26px 38px;min-height:990px;font-family:'Times New Roman',serif;font-size:13.5px;max-width:700px;margin:auto;">${rcBorderSvg(c)}<div style="position:relative">
-<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px">`:''}<div style="flex:1;text-align:center;font-family:Arial,sans-serif;font-weight:700">${hd.lines.map(l=>`<div style="color:${k.school_name};font-size:${Math.round(l[1]*1.05)}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
+<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px;margin-left:16.67px;margin-top:16.67px;flex-shrink:0">`:''}<div style="flex:1;text-align:center;font-family:Arial,sans-serif;font-weight:700">${hd.lines.map(l=>`<div style="color:${k.school_name};white-space:nowrap;font-size:${(l[1]+.5)*1.05}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
 ${row(L('REPORT CARD FOR TERM'),dl(c.term,'term',3),L('YEAR'),dl(c.year,'year',2))}${row(L("PUPIL'S NAME:"),dl(c.name,'name',4),L('CLASS:'),dl(c.cls,'cls',1.4))}
 ${row(L('AGE:'),dl(c.age,'age',1),L('SEX:'),dl(c.sex,'sex',1),L('ATTENDANCE:'),dl(c.att,'att',2))}${row(L('LIN'),dl(c.lin,'lin',1))}
 <div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:8px">PROGRESSIVE REPORT<br>MID-TERM</div>
@@ -846,7 +856,7 @@ function vReport(){const head=`<div class="card"><h2>Report Cards</h2>${rcBar()}
  return head+`<p style="margin:0 0 8px;color:var(--mu)"><b>Step 1:</b> set up the card below (class teacher or Director of Studies). <b>Step 2:</b> type each learner's comments with <b>Edit</b>. <b>Step 3:</b> preview and print. Marks come from the examination marksheet.</p></div>
 <div class="card w"><h2>Step 1: report card settings for ${esc(ctx.cls)}</h2>
 <div class="g"><div><label>Card design</label><select onchange="rcS('card',this.value)">${Object.keys(RC_CARDS).map(k=>`<option value="${k}" ${k==cs.card?'selected':''}>${RC_CARDS[k].name}</option>`).join('')}</select></div>
-<div><label>Page border design</label><select onchange="rcS('border',this.value)">${RC_BORDERS[cs.card].map((n,i)=>`<option value="${i+1}" ${String(cs.border)==String(i+1)?'selected':''}>${i+1}. ${n}</option>`).join('')}</select><small>Three designs per category. Set colours below; preview before printing.</small></div>
+<div><label>Page border design</label><select onchange="rcS('border',this.value)">${RC_BORDERS[cs.card].map((n,i)=>`<option value="${i+1}" ${String(cs.border)==String(i+1)?'selected':''}>${i+1}. ${n}</option>`).join('')}</select><small>Six designs per category, including the three Souvenir Word border patterns. Set colours below; preview before printing.</small></div>
 <div><label>Mid-term results (progressive report)</label><select onchange="rcS('mid',this.value)">${xo(cs.mid,'None (leave blank)')}</select></div>
 <div><label>End of term results (main table)</label><select onchange="rcS('end',this.value)">${xo(cs.end)}</select></div></div>
 <h3 style="margin:12px 0 4px;font-size:15px;color:var(--ac)">Learning areas: marksheet subject and OUT OF</h3>
@@ -862,7 +872,14 @@ function vReport(){const head=`<div class="card"><h2>Report Cards</h2>${rcBar()}
 <div class="card w"><h2>Steps 2 and 3: learners (${L.length})</h2><div style="margin-bottom:8px"><button class="btn" onclick="rcPrintAll()">Print all in one PDF</button></div>
 <table><tr><th>No.</th><th>Learner</th><th>LIN</th><th>Attendance</th><th>Comments</th><th></th></tr>${L.map((l,i)=>{const r=RCS.lr[l.id]||{};return`<tr><td>${i+1}</td><td style="text-align:left">${esc(l.name)}</td><td>${esc(l.lin||'')}</td><td>${esc(r.att||'')}</td><td>${r.ctc&&r.htc?'✓ both':r.ctc?'class teacher':r.htc?'head teacher':'–'}</td><td style="white-space:nowrap"><button class="btn" style="margin:0 4px 0 0;padding:4px 10px" onclick="rcEdit('${l.id}')">Edit</button><button class="btn s" style="margin:0 4px 0 0;padding:4px 10px" onclick="rcPreview('${l.id}')">Preview</button><button class="btn s" style="margin:0;padding:4px 10px" onclick="rcPrintOne('${l.id}')">Print</button></td></tr>`}).join('')||'<tr><td colspan="6">No learners in this class and year.</td></tr>'}</table></div>`}
 async function rcSaveSettings(){const e=rcEff(),ok1=await rcSave('class',{...RCS.cls,card:e.card,mid:e.mid,end:e.end}),ok2=await rcSave('term',RCS.term);if(ok1&&ok2){RCS.cls={...RCS.cls,card:e.card,mid:e.mid,end:e.end};alert('Settings saved.');render()}}
-function rcColors(){const c=rcCol();mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:90vh;overflow:auto"><h2>School name, border and ink colours</h2><p style="margin:0 0 8px;color:var(--mu)">Choose the color used to write each item on the report card. These colors apply to all report cards of the school.</p><div class="g" style="grid-template-columns:1fr 1fr">${RC_FIELDS.map(f=>`<div style="display:flex;align-items:center;gap:8px"><input type="color" id="cl_${f[0]}" value="${c[f[0]]}" style="width:46px;height:34px;padding:0;flex:none"><label style="margin:0">${f[1]}</label></div>`).join('')}</div>
+const RC_PALETTES=[
+ {name:'Purple and gold',main:'#672b88',accent:'#d29d35',ink:'#1b3a9c'},
+ {name:'Royal blue and gold',main:'#174b91',accent:'#d29d35',ink:'#174b91'},
+ {name:'Emerald and gold',main:'#176746',accent:'#c79732',ink:'#176746'},
+ {name:'Burgundy and gold',main:'#802b42',accent:'#c79732',ink:'#802b42'},
+ {name:'Teal and copper',main:'#126a73',accent:'#b96b38',ink:'#126a73'}];
+function rcApplyPalette(i){const p=RC_PALETTES[i];if(!p)return;RC_FIELDS.forEach(([k])=>document.getElementById('cl_'+k).value=k==='border_accent'?p.accent:k==='border_primary'||k==='school_name'?p.main:p.ink)}
+function rcColors(){const c=rcCol();mdlg.innerHTML=`<div class="b" style="max-width:480px;max-height:90vh;overflow:auto"><h2>School name, border and ink colours</h2><p style="margin:0 0 8px;color:var(--mu)">Choose the color used to write each item on the report card. These colors apply to all report cards of the school.</p><label>Five ready-made colour combinations</label><div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px">${RC_PALETTES.map((p,i)=>`<button type="button" class="btn s" style="margin:0;border:2px solid ${p.main}" onclick="rcApplyPalette(${i})"><span style="color:${p.main}">●</span> <span style="color:${p.accent}">●</span> ${p.name}</button>`).join('')}</div><div class="g" style="grid-template-columns:1fr 1fr">${RC_FIELDS.map(f=>`<div style="display:flex;align-items:center;gap:8px"><input type="color" id="cl_${f[0]}" value="${c[f[0]]}" style="width:46px;height:34px;padding:0;flex:none"><label style="margin:0">${f[1]}</label></div>`).join('')}</div>
 <button class="btn" style="margin-top:10px" onclick="rcColorsSave()">Save colors</button><button class="btn s" onclick="RC_FIELDS.forEach(f=>document.getElementById('cl_'+f[0]).value=RC_INK)">Reset to blue ink</button><button class="btn s" onclick="mdlg.style.display='none'">Close</button></div>`;mdlg.style.display='flex'}
 async function rcColorsSave(){const o={};RC_FIELDS.forEach(f=>o[f[0]]=document.getElementById('cl_'+f[0]).value);if(await rcSave('colors',o)){RCS.colors=o;mdlg.style.display='none';render()}}
 function rcEdit(id){if(!curRcOk())return;const L=LI(),i=L.findIndex(x=>x.id==id),l=L[i];if(!l)return;const r=RCS.lr[id]||{},cs=rcEff();
@@ -989,7 +1006,7 @@ function saveSubs(){syncS();if(!SB2.length)return ferr.textContent='Keep at leas
 /* ===== contact admin and help ===== */
 const intl=n=>{let d=digits(n||'');if(d.startsWith('0')&&d.length==10)d='256'+d.slice(1);return d};
 const isA2=()=>!!ME&&!!CS().a2p&&digits(ME.phone||'').slice(-9)==digits(CS().a2p).slice(-9);
-function contactBtns(){if(!ME||ME.role=='admin')return'';if(isA2())return'<button onclick="wa()">Contact Admin 1</button>';if(CS().a2p)return'<button onclick="wa2()">Contact Admin 2</button>';return'<button onclick="wa()">Contact admin</button>'}
+function contactBtns(){if(!ME)return'';if(ME.role=='admin')return'<button onclick="schoolArchive()">Download school PDFs (ZIP)</button>';if(isA2())return'<button onclick="schoolArchive()">Download school PDFs (ZIP)</button><button onclick="wa()">Contact Admin 1</button>';if(CS().a2p)return'<button onclick="wa2()">Contact Admin 2</button>';return'<button onclick="wa()">Contact admin</button>'}
 function wa2(){const n=intl(CS().a2p);if(!n)return alert('Admin 2 has no WhatsApp number yet.');window.open('https://wa.me/'+n+'?text='+encodeURIComponent('Hello'+(CS().a2n?' '+CS().a2n:'')+', I need help with the school app.'+(ME?` My name is ${ME.full_name}.`:'')),'_blank')}
 function wa(){const n=digits(ADMIN_WHATSAPP);if(!n)return alert('The administrator WhatsApp number has not been set in this app yet.');window.open('https://wa.me/'+n+'?text='+encodeURIComponent('Hello, I need help with the school app.'+(ME?` My name is ${ME.full_name}.`:'')),'_blank')}
 function help(){const H=(t,l)=>`<h2 style="margin:14px 0 6px;font-size:15px">${t}</h2><ol style="margin:0;padding-left:20px;line-height:1.6">${l.map(x=>`<li>${x}</li>`).join('')}</ol>`;
@@ -1002,6 +1019,39 @@ ${H('Examination MarkSheet',['Open <b>Examination</b>. The class teacher types t
 ${H('Administrator',['Open <b>Admin</b>. Register a school, then register each person with phone number, role, class and subject. Give them the registration code shown.','Use <b>Teaching</b> to add more classes or subjects to a teacher.'])}
 ${H('Need help?',['Press <b>Contact admin</b> to message the administrator on WhatsApp.'])}
 <button class="btn" onclick="mdlg.style.display='none'">Close</button></div>`;mdlg.style.display='flex'}
+
+/* CSV companions and one-download school PDF archive. No database writes. */
+let EXPORT_RUN=null;
+const exportName=s=>String(s||'report').replace(/[^a-zA-Z0-9_.-]+/g,'_');
+const csvCell=v=>{let t=String(v??'');if(/^[\s]*[=+@-]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"'};
+const csvBytes=rows=>new TextEncoder().encode('\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n'));
+function saveExportBlob(blob,name){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+function exportPageCSV(root=m,title){const rows=[[CS().name||'School',title||TABS[tab]||'Report'],['Year',ctx.year,'Term',ctx.term,'Class',ctx.cls]];root.querySelectorAll('table').forEach((t,i)=>{rows.push([],['Table '+(i+1)]);t.querySelectorAll('tr').forEach(tr=>rows.push([...tr.cells].flatMap(td=>{const text=td.querySelector('input,select,textarea');return[text?text.value:td.innerText.trim(),...Array(Math.max(0,td.colSpan-1)).fill('')]})))});if(rows.length===2)rows.push([],[(root.innerText||'').trim()]);saveExportBlob(new Blob([csvBytes(rows)],{type:'text/csv;charset=utf-8'}),exportName((title||TABS[tab])+'_'+ctx.cls+'_'+ctx.year)+'.csv')}
+function addExportButtons(root){root.querySelectorAll('button').forEach(b=>{const code=b.getAttribute('onclick')||'';if(!/\b(?:pdf\w*|rcPrint\w*)\s*\(/.test(code)||b.dataset.csvAdded)return;b.dataset.csvAdded='1';const c=document.createElement('button');c.className='btn s';c.textContent='Export to Excel (CSV)';c.onclick=()=>exportCSV(()=>b.click());b.after(c)});if(root===m&&!root.querySelector('[data-page-csv]')){const c=document.createElement('button');c.className='btn s';c.dataset.pageCsv='1';c.textContent='Export this page to Excel (CSV)';c.onclick=()=>exportPageCSV(root);root.prepend(c)}}
+// Capture the same data used by every PDF, including its metadata and tables.
+function installExportCapture(){const J=window.jspdf;if(!J||J.jsPDF.__exportCapture)return;const Original=J.jsPDF;function Wrapped(...args){const d=new Original(...args),table=d.autoTable,text=d.text;d.__csv=[];let inTable=false;d.text=function(...a){if(EXPORT_RUN?.mode==='csv'&&!inTable){const lines=Array.isArray(a[0])?a[0]:[a[0]];lines.forEach(x=>d.__csv.push([typeof x==='string'?x:JSON.stringify(x)]))}return text.apply(this,a)};d.autoTable=function(o){if(EXPORT_RUN?.mode==='csv'){d.__csv.push([]);for(const section of ['head','body','foot'])for(const r of o[section]||[])d.__csv.push(r.flatMap(v=>{const cell=v&&typeof v==='object'&&!Array.isArray(v)?v:{content:v};return[String(cell.content??''),...Array(Math.max(0,(cell.colSpan||1)-1)).fill('')]}))}inTable=true;try{return table.call(this,o)}finally{inTable=false}};return d}Object.assign(Wrapped,Original);Wrapped.prototype=Original.prototype;Wrapped.__exportCapture=true;J.jsPDF=Wrapped}
+function captureExport(d,fn){if(EXPORT_RUN.mode==='csv')EXPORT_RUN.files.push({name:exportName(fn.replace(/\.pdf$/i,''))+'.csv',data:csvBytes(d.__csv)});else EXPORT_RUN.files.push({name:exportName(EXPORT_RUN.prefix+'_'+fn),data:new Uint8Array(d.output('arraybuffer'))})}
+async function exportCSV(action){if(EXPORT_RUN)return alert('Please wait for the current download to finish.');installExportCapture();const run={mode:'csv',files:[]};EXPORT_RUN=run;try{await action();if(!run.files.length)throw Error('No report generated. Select a report or examination first.');if(run.files.length===1)saveExportBlob(new Blob([run.files[0].data],{type:'text/csv;charset=utf-8'}),run.files[0].name);else saveExportBlob(makeStoredZip(run.files),'Report_CSVs.zip')}catch(e){alert('CSV export: '+e.message)}finally{EXPORT_RUN=null}}
+// Portable ZIP storage, UTF-8 filenames, CRC-32; no extra network dependency.
+function makeStoredZip(files){const enc=new TextEncoder(),parts=[],central=[];let offset=0;const crc=data=>{let c=0xffffffff;for(const b of data){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return(c^0xffffffff)>>>0};const block=n=>new Uint8Array(n),view=a=>new DataView(a.buffer);const names=new Set();for(const f of files){let name=f.name,i=1;while(names.has(name))name=f.name.replace(/(\.[^.]*)?$/,m=>'_'+i+++m);names.add(name);const n=enc.encode(name),data=f.data instanceof Uint8Array?f.data:enc.encode(f.data),sum=crc(data),h=block(30),v=view(h);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint16(6,0x800,true);v.setUint32(14,sum,true);v.setUint32(18,data.length,true);v.setUint32(22,data.length,true);v.setUint16(26,n.length,true);parts.push(h,n,data);const c=block(46),w=view(c);w.setUint32(0,0x02014b50,true);w.setUint16(4,20,true);w.setUint16(6,20,true);w.setUint16(8,0x800,true);w.setUint32(16,sum,true);w.setUint32(20,data.length,true);w.setUint32(24,data.length,true);w.setUint16(28,n.length,true);w.setUint32(42,offset,true);central.push(c,n);offset+=h.length+n.length+data.length}const size=central.reduce((t,a)=>t+a.length,0),end=block(22),v=view(end);v.setUint32(0,0x06054b50,true);v.setUint16(8,files.length,true);v.setUint16(10,files.length,true);v.setUint32(12,size,true);v.setUint32(16,offset,true);if(files.length>65535||offset+size>0xffffffff)throw Error('Archive exceeds ZIP limits. Export fewer years.');return new Blob([...parts,...central,end],{type:'application/zip'})}
+async function schoolArchive(){if(EXPORT_RUN)return alert('An export is already running.');if(!ME||!(ADMIN()||isA2())||(!ADMIN()&&ME.school_id!==ctx.sch))return alert('Only this school’s Admin 2 or the main administrator can download its archive.');if(!window.jspdf)return alert('PDF library is unavailable. Reconnect to the internet and reload.');
+ installExportCapture();const savedCtx=JSON.parse(JSON.stringify(ctx)),savedRc={...RCS},school=ctx.sch,run={mode:'zip',files:[],prefix:'',cancel:false},log=[`School: ${CS().name}`,`School ID: ${school}`,`Created: ${new Date().toISOString()}`,'Scope: all years, classes and terms currently accessible to this signed-in account.','PDF reports are regenerated from current records; this archive is not a database backup.'];EXPORT_RUN=run;
+ mdlg.innerHTML='<div class="b" style="max-width:480px"><h2>Preparing school PDF archive</h2><p id="archiveStatus">Starting…</p><button class="btn s" id="archiveCancel">Cancel</button></div>';mdlg.style.display='flex';document.getElementById('archiveCancel').onclick=()=>run.cancel=true;
+ const originalAlert=window.alert;window.alert=msg=>log.push('NOTICE: '+String(msg));let attempted=0,outcome='';
+ const generate=async(label,action)=>{if(run.cancel)throw Error('Cancelled');const before=run.files.length;attempted++;document.getElementById('archiveStatus').textContent=`${label} · ${run.files.length} PDFs prepared`;try{await action();log.push((run.files.length>before?'OK: ':'SKIPPED: ')+run.prefix+' / '+label)}catch(e){log.push('FAILED: '+run.prefix+' / '+label+' - '+e.message)}await new Promise(resolve=>setTimeout(resolve,0))};
+ try{
+ const all=[...S.asg,...S.exams].filter(x=>x.sch===school);const groups=new Map();for(const x of all)groups.set(JSON.stringify([x.year,x.term,x.cls]),x);for(const l of S.learners.filter(x=>x.sch===school)){if(![...groups.values()].some(x=>x.year===l.year&&x.cls===l.cls))groups.set(JSON.stringify([l.year,'',l.cls]),{...l,term:''})}
+ for(const g of groups.values()){
+  if(run.cancel)throw Error('Cancelled');Object.assign(ctx,{sch:school,year:g.year,term:g.term,cls:g.cls,a:'',x:'',s:'',wk:'',pk:0});run.prefix=exportName(`${g.year}_${g.term}_${g.cls}`);
+  await generate('Learner register',pdfL);await generate('Dashboard',pdfDash);
+  const assessments=FA0();for(const a of assessments){ctx.a=a.id;run.prefix=exportName(`${g.year}_${g.term}_${g.cls}_${a.id}`);await generate('Assessment results',pdfR);await generate('Performance report',pdfRep)}
+  run.prefix=exportName(`${g.year}_${g.term}_${g.cls}`);if(assessments.length){await generate('Termly ranking',pdfT);await generate('Performance analysis',pdfAn);for(const subject of [...new Set(assessments.map(a=>a.subject))]){ctx.s=subject;await generate('Progress: '+subject,pdfP)}ctx.s=''}
+  for(const e of XL()){ctx.x=e.id;run.prefix=exportName(`${g.year}_${g.term}_${g.cls}_${e.id}`);await generate('MarkSheet',()=>pdfSheet(e));await generate('Grading and divisions',pdfScales);await generate('General and subject analysis',pdfGenSub);await generate('Gender and division analysis',pdfGender);await generate('Exam overview',pdfOverview);await generate('Learners needing help',pdfHelp)}
+  run.prefix=exportName(`${g.year}_${g.term}_${g.cls}`);if(rcTplOf()&&LI().length){await rcLoad();if(RCS.err)log.push('FAILED: Report card settings: '+RCS.err);else if(rcEff().end)await generate('Class report cards',rcPrintAll);else log.push('SKIPPED: Report cards have no selected end-of-term examination: '+run.prefix)}
+ }
+ if(run.cancel)throw Error('Cancelled');if(!run.files.length)throw Error('No PDFs could be generated from accessible records.');log.push(`PDF count: ${run.files.length}`,`Reports attempted: ${attempted}`);const count=run.files.length;run.files.push({name:'ARCHIVE_CONTENTS.txt',data:new TextEncoder().encode(log.join('\r\n'))});saveExportBlob(makeStoredZip(run.files),exportName(CS().name)+'_School_PDF_Archive_'+new Date().toISOString().slice(0,10)+'.zip');outcome=`${count} PDFs prepared in one ZIP. Read ARCHIVE_CONTENTS.txt for skipped reports or errors.`;
+ }catch(e){outcome='School archive: '+e.message}finally{window.alert=originalAlert;EXPORT_RUN=null;Object.keys(ctx).forEach(k=>delete ctx[k]);Object.assign(ctx,savedCtx);Object.assign(RCS,savedRc);mdlg.style.display='none';render()}if(outcome)originalAlert(outcome);
+}
 
 boot();
 </script></body></html>
