@@ -1,5 +1,5 @@
-/* EXPORT UPDATE V4: network-first app pages, refreshed offline fallback. */
-const CACHE='lamps-export-v4-'+self.registration.scope;
+/* EXPORT UPDATE V5: network-first app pages, refreshed offline fallback. */
+const CACHE='lamps-export-v5-'+self.registration.scope;
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.add(new Request(new URL('index.html',self.registration.scope),{cache:'reload'}));await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil(self.clients.claim())});
 self.addEventListener('fetch',event=>{const request=event.request,url=new URL(request.url);if(request.method!=='GET'||url.origin!==self.location.origin||!url.href.startsWith(self.registration.scope))return;if(request.mode!=='navigate'&&!/\.(?:html|css|js|png|jpg|jpeg|svg|ico|webmanifest)$/.test(url.pathname))return;event.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(request,{cache:'no-cache'});if(response.ok)await cache.put(request,response.clone());return response}catch(error){const cached=await cache.match(request);if(cached)return cached;if(request.mode==='navigate'){const home=await cache.match(new URL('index.html',self.registration.scope));if(home)return home}throw error}})())});

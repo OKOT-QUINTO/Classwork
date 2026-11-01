@@ -56,7 +56,7 @@ html{touch-action:manipulation;-webkit-text-size-adjust:100%;-webkit-tap-highlig
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}));
 /* ===== DATABASE SETTINGS: paste your Supabase Project URL and anon public key between the quotes (or leave empty and connect from Setup) ===== */
 const SB_URL='https://yppaaekjcdflpkimdznr.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwcGFhZWtqY2RmbHBraW1kem5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwMjIyMzUsImV4cCI6MjEwNzU5ODIzNX0.o9bmHwxbWqA_7gJ5aCFGrdBrH5Zg0zJ9FBZVMD0IPoY';
-const APP_VER='EXPORT UPDATE V4 · 1-Nov-2026 · CSV + School PDF archive';
+const APP_VER='EXPORT UPDATE V5 · Logo move + LIT II fix + 5 report card designs';
 const ADMIN_WHATSAPP='+256789160961';   /* the administrator's WhatsApp number with country code, e.g. 256772123456 */
 /* ======================================================================================================================================== */
 let VER=0,USER='',NEEDLOGIN=false,NEEDJOIN=false,HASU=true,LM='in',SYNC='Saved',busy=false,again=false;
@@ -681,8 +681,8 @@ const RC_CARDS={
  lower:{name:'Lower primary card (P1–P3)',spare:0,prog:['eng','mtc','lit1','lit2','re','rdg'],rows:[
   {k:'eng',n:'ENGLISH',s:'ENG',m:['english']},
   {k:'mtc',n:'MATHEMATICS',s:'MTC',m:['mathematics','maths','math']},
-  {k:'lit1',n:'LITERACY I',s:'LIT I',m:['literacy i','literacy 1','literacy one','literacy i (reading)']},
-  {k:'lit2',n:'LITERACY II (WRITING)',s:'LIT II',m:['literacy ii','literacy 2','literacy two','literacy ii (writing)','writing']},
+  {k:'lit1',n:'LITERACY I',s:'LIT I',m:['literacy i','literacy 1','literacy one','literacy i (reading)','lit i','lit 1','lit one']},
+  {k:'lit2',n:'LITERACY II (WRITING)',s:'LIT II',m:['literacy ii','literacy 2','literacy two','literacy ii (writing)','literacy 2 (writing)','writing','lit ii','lit 2','lit two','lit ii (writing)','lit 2 (writing)']},
   {k:'rdg',n:'READING',s:'READING',m:['reading']},
   {k:'re',n:'RELIGIOUS EDUCATION',s:'RE',m:RC_REL}]},
  upper:{name:'Upper primary card (P4–P7)',spare:1,prog:['eng','mtc','sci','sst','re'],rows:[
@@ -709,7 +709,7 @@ const rcOk=cls=>!!ME&&(isA2()||['admin','headteacher','dos'].includes(ME.role)||
 const rcCol=()=>{const o={};RC_FIELDS.forEach(f=>o[f[0]]=(RCS.colors&&RCS.colors[f[0]])||({school_name:'#000000',border_primary:'#672b88',border_accent:'#d29d35'}[f[0]]||RC_INK));return o};
 const rcDefCard=()=>{const m=String(ctx.cls).match(/\d+/);return m&&+m[0]<=3?'lower':'upper'};
 function rcEff(){const c=RCS.cls||{},xs=XL(),mid=xs.find(x=>/mid/i.test(x.name)),end=xs.find(x=>/end/i.test(x.name))||xs.find(x=>x!==mid);
- return{border:c.border||'1',card:c.card||rcDefCard(),mid:c.mid!==undefined?c.mid:(mid?mid.id:''),end:c.end||(end?end.id:''),map:c.map||{},out:c.out||{},scale:{...RC_DEFSCALE,...(c.scale||{})},req:c.req||{},rl:c.rl||{}}}
+ return{design:String(c.design||'1'),border:c.border||'1',card:c.card||rcDefCard(),mid:c.mid!==undefined?c.mid:(mid?mid.id:''),end:c.end||(end?end.id:''),map:c.map||{},out:c.out||{},scale:{...RC_DEFSCALE,...(c.scale||{})},req:c.req||{},rl:c.rl||{}}}
 async function rcLoad(){const k=rcKey();RCS.loading=true;RCS.err='';
  try{const a=await SB.from('report_settings').select('data').eq('school_id',ctx.sch).eq('kind','colors');if(a.error)throw a.error;
   const rows=[];for(let f=0;;f+=1000){const b=await SB.from('report_settings').select('kind,class_name,learner_id,data').eq('school_id',ctx.sch).eq('year',ctx.year).eq('term',ctx.term).in('class_name',['',ctx.cls]).range(f,f+999);if(b.error)throw b.error;rows.push(...b.data);if(b.data.length<1000)break}
@@ -720,9 +720,16 @@ async function rcSave(kind,data,lid){const col=kind=='colors',r=await SB.from('r
  if(r.error){alert('Not saved: '+r.error.message);return false}return true}
 
 /* ---- which marksheet subject fills which row of the card ---- */
-function rcIdx(e,row,cs){const names=e.cfg.subjects.map(s=>rcN(s.name)),o=cs.map&&cs.map[row.k];if(o==='-')return -1;if(o){const i=names.indexOf(rcN(o));if(i>=0)return i}return names.findIndex(n=>row.m.includes(n))}
+const rcCanon=s=>rcN(s).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(Boolean).map(w=>({literacy:'lit',literacies:'lit',ii:'2',two:'2',i:'1',one:'1',iii:'3',three:'3'}[w]||w)).join(' ');
+function rcIdx(e,row,cs){const subs=e.cfg.subjects,names=subs.map(s=>rcN(s.name)),o=cs.map&&cs.map[row.k];if(o==='-')return -1;if(o){const i=names.indexOf(rcN(o));if(i>=0)return i}
+ let i=names.findIndex(n=>row.m.includes(n));if(i>=0)return i;
+ const al=[...new Set([...row.m,row.s,row.n].map(rcCanon))];
+ i=subs.findIndex(s=>al.includes(rcCanon(s.name)));if(i>=0)return i;
+ return subs.findIndex(s=>s.short&&al.includes(rcCanon(s.short)))}
 const rcAge=d=>{if(!d)return'';const t=new Date(d);if(isNaN(t))return'';const n=new Date();let a=n.getFullYear()-t.getFullYear();if(n<new Date(n.getFullYear(),t.getMonth(),t.getDate()))a--;return a>=0&&a<30?String(a):''};
 const rcDate=v=>{if(!v)return'';const t=new Date(v);return isNaN(t)?String(v):t.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
+/* logo position on the A4 page in mm: moved 7 mm down and 7 mm in from the left margin (was x 17, y 13). Same in all five designs. */
+const RC_LOGO_POS={x:24,y:20,w:33,h:27.4};
 function rcHead(){if(rcTplOf()=='souvenir')return{logo:RC_LOGO,lines:[['SOUVENIR MIXED NURSERY',17],['PRIMARY &',10],['VOCATIONAL TRAINING SCHOOL',13],['LOWER KONGE - KAMPALA',9]],contact:'TEL +256757785855   e-mail: souvenirschools1@gmail.com.'};
  return{logo:null,lines:[[String(CS().name||'SCHOOL').toUpperCase(),17]],contact:CS().hc?'TEL '+CS().hc:''}}
 function rcPre(){const cs=rcEff(),ee=S.exams.find(x=>x.id==cs.end),me=S.exams.find(x=>x.id==cs.mid),map=e=>{const m={};if(e)sheetRows(e).forEach(r=>m[r.l.id]=r);return m};
@@ -738,9 +745,16 @@ function rcCard(l,P){const{cs,ee,me,card}=P,lr=RCS.lr[l.id]||{},re=ee?P.re[l.id]
  if(rm){let some=false;card.prog.forEach((k,j)=>{const row=card.rows.find(r=>r.k==k),ix=rcIdx(me,row,cs),c=ix>=0?rm.cells[ix]:null;if(c&&c.v!=null){prog.marks[j]=c.v;prog.aggs[j]=typeof c.a=='number'?c.a:'';some=true}});
   if(some){prog.tot=rm.tagg!=null?rm.tagg:'';prog.div=rm.div&&rm.div!='?'?(rm.div=='X'?'X':'DIV '+rm.div):''}}
  const rq=RC_REQ.map(r=>({l:(cs.rl&&cs.rl[r.k])||r.l,v:lr.req&&lr.req[r.k]!==undefined?lr.req[r.k]:(cs.req[r.k]||'')}));
- return{category:cs.card,border:cs.border,head:P.head,col:P.col,term:String(ctx.term).replace(/^Term\s*/i,''),year:ctx.year,name:l.name,cls:ctx.cls,age:rcAge(l.dob),sex:l.gender=='Male'?'M':l.gender=='Female'?'F':'',att:lr.att||'',lin:l.lin||'',
+ return{category:cs.card,border:cs.border,sty:RC_DESIGNS[(parseInt(cs.design)||1)-1]||RC_DESIGNS[0],head:P.head,col:P.col,term:String(ctx.term).replace(/^Term\s*/i,''),year:ctx.year,name:l.name,cls:ctx.cls,age:rcAge(l.dob),sex:l.gender=='Male'?'M':l.gender=='Female'?'F':'',att:lr.att||'',lin:l.lin||'',
   prog,rows,spare:card.spare,total,ctc:lr.ctc||'',cond:lr.cond||'',req:rq,nb:rcDate(RCS.term.nb),ne:rcDate(RCS.term.ne),htc:lr.htc||''}}
 
+/* Five report card designs. Each one works with every border, every colour setting and the logo position. */
+const RC_DESIGNS=[
+ {n:'Classic (plain tables, dotted lines)',head:'plain',zebra:0,sec:'red',fld:'dots',lab:0,grid:'k',hf:'helvetica'},
+ {n:'Modern banded (tinted headers, colour bars)',head:'tint',zebra:1,sec:'bar',fld:'line',lab:1,grid:'p',hf:'helvetica'},
+ {n:'Elegant serif (ruled titles, cream rows)',head:'plain',zebra:1,sec:'rules',fld:'dots',lab:1,grid:'p',hf:'times'},
+ {n:'Boxed fields (shaded entry boxes)',head:'tint',zebra:0,sec:'underline',fld:'box',lab:0,grid:'k',hf:'helvetica'},
+ {n:'Bold contrast (solid headers, colour bars)',head:'solid',zebra:1,sec:'bar',fld:'line',lab:1,grid:'p',hf:'times'}];
 /* Shared vector border geometry: identical in preview and A4 PDF. */
 const RC_BORDERS={lower:['Classic double frame','Rounded celebration','Ribbon corners','Souvenir triangles','Souvenir twisted lines 2','Souvenir twisted lines 1'],upper:['Classic double frame','Formal stepped frame','Diamond corners','Souvenir triangles','Souvenir twisted lines 2','Souvenir twisted lines 1']};
 function rcBorderShapes(c){const a=[],main=c.col.border_primary,accent=c.col.border_accent;
@@ -773,29 +787,34 @@ function rcBorderSvg(c){return `<svg aria-hidden="true" viewBox="0 0 210 297" pr
 function rcBorderDraw(d,c){for(const q of rcBorderShapes(c)){d.setDrawColor(...hex2(q.color));d.setLineWidth(q.lw);if(q.type==='rect'){if(q.r)d.roundedRect(q.x,q.y,q.w,q.h,q.r,q.r);else d.rect(q.x,q.y,q.w,q.h)}else if(q.type==='circle'){d.setFillColor(...hex2(q.color));d.circle(q.x,q.y,q.r,'F')}else d.line(q.x,q.y,q.x2,q.y2)}}
 
 /* ---- PDF drawing (A4 portrait) ---- */
-function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]);
+function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]),sy=c.sty||RC_DESIGNS[0],P1=hex2(c.col.border_primary),P2=hex2(c.col.border_accent),LAB=sy.lab?P1:[0,0,0],tn=(a,x)=>x.map(v=>Math.round(v+(255-v)*a)),GRID=sy.grid=='p'?P1:[0,0,0];
  rcBorderDraw(d,c);
  const col=a=>d.setTextColor(a[0],a[1],a[2]);
- const tx=(s,x,y,o={})=>{d.setFont(o.f||'times',o.b?'bold':'normal');d.setFontSize(o.s||10.5);col(o.c||[0,0,0]);d.text(String(s),x,y,o.a?{align:o.a}:undefined)};
- const dots=(x1,x2,y)=>{d.setDrawColor(70,70,70);d.setLineWidth(.25);d.setLineDashPattern([.35,1.1],0);d.line(x1,y,x2,y);d.setLineDashPattern([],0)};
+ const tx=(s,x,y,o={})=>{d.setFont(o.f||'times',o.b?'bold':'normal');d.setFontSize(o.s||10.5);col(o.c||LAB);d.text(String(s),x,y,o.a?{align:o.a}:undefined)};
+ const dots=(x1,x2,y)=>{if(sy.fld=='dots'){d.setDrawColor(70,70,70);d.setLineWidth(.25);d.setLineDashPattern([.35,1.1],0);d.line(x1,y,x2,y);d.setLineDashPattern([],0)}else{d.setDrawColor(...(sy.fld=='box'?[110,110,110]:P1));d.setLineWidth(.25);d.line(x1,y,x2,y)}};
  const fit=(s,x,y,w,k,sz=10.5,center=false)=>{s=String(s);if(!s)return;d.setFont('helvetica','normal');let f=sz;d.setFontSize(f);while(f>6&&d.getTextWidth(s)>w){f-=.5;d.setFontSize(f)}col(C(k));d.text(s,center?x+w/2:x,y,center?{align:'center'}:undefined)};
- const fld=(lab,x,w,y,val,k)=>{tx(lab,x,y,{b:1});const lw=d.getTextWidth(lab)+1.5;dots(x+lw,x+w,y+.7);fit(val,x+lw+1,y-.3,w-lw-2,k,10.5,true)};
+ const fld=(lab,x,w,y,val,k)=>{tx(lab,x,y,{b:1});const lw=d.getTextWidth(lab)+1.5;if(sy.fld=='box'){d.setFillColor(...tn(.9,P1));d.rect(x+lw,y-4.4,w-lw,5.6,'F')}dots(x+lw,x+w,y+.7);fit(val,x+lw+1,y-.3,w-lw-2,k,10.5,true)};
  const wrap2=(txt,w1,w2,k,x1,y1,x2,y2)=>{txt=String(txt||'').replace(/\s+/g,' ').trim();if(!txt)return;d.setFont('helvetica','normal');
   for(let f=10.5;f>=6.5;f-=.5){d.setFontSize(f);const words=txt.split(' ');let l1='',i=0;while(i<words.length&&d.getTextWidth((l1?l1+' ':'')+words[i])<=w1){l1+=(l1?' ':'')+words[i];i++}
    const rest=words.slice(i).join(' ');if(!rest||d.getTextWidth(rest)<=w2||f==6.5){let r2=rest;while(r2&&d.getTextWidth(r2)>w2)r2=r2.slice(0,-2);col(C(k));d.text(l1,x1,y1);if(r2)d.text(r2,x2,y2);return}}};
  const red=[200,30,45],h=c.head;
- if(h.logo)d.addImage(h.logo,'JPEG',mg+5,13,33,27.4);
- const cx=h.logo?127:W/2;let y=17;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:'helvetica',b:1,s:ln[1]+.5,a:'center',c:C('school_name')});y+=ln[1]>=15?6.5:5.4});
- if(h.contact)tx(h.contact,cx,Math.max(y+2,41),{b:1,s:10.5,a:'center'});
+  const sec=(ls,y)=>{const st=sy.sec,n=ls.length;d.setFont('helvetica','bold');d.setFontSize(10.5);const wd=Math.max(...ls.map(t=>d.getTextWidth(t)))+14;
+   if(st=='bar'){d.setFillColor(...P1);d.roundedRect(W/2-wd/2,y-4.4,wd,5.9+6*(n-1),1.2,1.2,'F')}
+   ls.forEach((t,i)=>{const yy=y+i*6,o={f:(sy.hf=='times'&&st!='red')?'times':'helvetica',b:1,a:'center'};o.c=st=='red'?red:st=='bar'?[255,255,255]:P1;tx(t,W/2,yy,o);
+    if(st=='rules'){const tw=d.getTextWidth(t);d.setDrawColor(...P2);d.setLineWidth(.5);d.line(mg+6,yy-1.3,W/2-tw/2-3,yy-1.3);d.line(W/2+tw/2+3,yy-1.3,R-6,yy-1.3)}
+    if(st=='underline'&&i==n-1){const tw=d.getTextWidth(t);d.setDrawColor(...P2);d.setLineWidth(.8);d.line(W/2-tw/2-2,yy+1.4,W/2+tw/2+2,yy+1.4)}})};
+ if(h.logo)d.addImage(h.logo,'JPEG',RC_LOGO_POS.x,RC_LOGO_POS.y,RC_LOGO_POS.w,RC_LOGO_POS.h);
+ const cx=h.logo?127:W/2;let y=17;h.lines.forEach(ln=>{tx(ln[0],cx,y,{f:sy.hf,b:1,s:ln[1]+.5,a:'center',c:C('school_name')});y+=ln[1]>=15?6.5:5.4});
+ if(h.contact)tx(h.contact,cx,Math.max(y+2,41),{b:1,s:10.5,a:'center',c:[0,0,0]});
  fld('REPORT CARD FOR TERM',mg,104,50,c.term,'term');fld('YEAR',122,R-122,50,c.year,'year');
  fld("PUPIL'S NAME:",mg,132,58,c.name,'name');fld('CLASS:',148,R-148,58,c.cls,'cls');
  fld('AGE:',mg,52,66,c.age,'age');fld('SEX:',70,38,66,c.sex,'sex');fld('ATTENDANCE:',114,R-114,66,c.att,'att');
  fld('LIN',mg,R-mg,74,c.lin,'lin');
- tx('PROGRESSIVE REPORT',W/2,85,{f:'helvetica',b:1,a:'center',c:red});tx('MID-TERM',W/2,91,{f:'helvetica',b:1,a:'center',c:red});
- const tab=o=>{const{in:inn,fs,styles,...rest}=o;d.autoTable({theme:'grid',margin:{left:mg+(inn||0),right:mg+(inn||0)},styles:{font:'times',fontSize:fs||9.5,cellPadding:1.6,halign:'center',valign:'middle',textColor:0,lineColor:0,lineWidth:.3,minCellHeight:7.4,overflow:'linebreak',...(styles||{})},headStyles:{fillColor:[255,255,255],textColor:0,fontStyle:'bold'},bodyStyles:{fillColor:[255,255,255]},...rest})};
+ sec(['PROGRESSIVE REPORT','MID-TERM'],85);
+ const tab=o=>{const{in:inn,fs,styles,...rest}=o;d.autoTable({theme:'grid',margin:{left:mg+(inn||0),right:mg+(inn||0)},styles:{font:'times',fontSize:fs||9.5,cellPadding:1.6,halign:'center',valign:'middle',textColor:0,lineColor:GRID,lineWidth:.3,minCellHeight:7.4,overflow:'linebreak',...(styles||{})},headStyles:{fillColor:sy.head=='solid'?P1:sy.head=='tint'?tn(.82,P1):[255,255,255],textColor:sy.head=='solid'?[255,255,255]:0,fontStyle:'bold'},bodyStyles:{fillColor:[255,255,255]},alternateRowStyles:{fillColor:sy.zebra?tn(.88,P2):[255,255,255]},...rest})};
  const cell=(v,k,x={})=>({content:String(v===undefined||v===null?'':v),styles:{textColor:C(k),font:'helvetica',fontStyle:'normal',...x}});
  tab({startY:94,in:4,head:[[...c.prog.cols,'TOTAL /AGG','DIVISION']],body:[[...c.prog.marks.map(v=>cell(v,'mid_marks')),'',''],[...c.prog.aggs.map(v=>cell(v,'mid_aggs')),cell(c.prog.tot,'mid_tot'),cell(c.prog.div,'mid_div',{fontSize:8.5})]]});
- y=d.lastAutoTable.finalY+8;tx('END OF TERM',W/2,y,{f:'helvetica',b:1,a:'center',c:red});
+ y=d.lastAutoTable.finalY+8;sec(['END OF TERM'],y);
  const body=c.rows.map(r=>[String(r.no),{content:r.n,styles:{halign:'left',fontStyle:'bold'}},cell(r.out,'out'),cell(r.sc,'sc'),cell(r.agg,'agg'),cell(r.cm,'cm',{halign:'left',fontSize:8.5})]);
  for(let i=0;i<c.spare;i++)body.push(['','','','','','']);
  body.push(['',{content:'TOTAL',styles:{halign:'left',fontStyle:'bold'}},cell(c.total.out,'tout'),cell(c.total.sc,'tsc'),cell(c.total.agg,'tagg'),cell(c.total.div,'tdiv',{halign:'center',fontSize:8.5})]);
@@ -804,7 +823,7 @@ function rcDraw(d,c){const W=210,mg=12,R=W-mg,C=k=>hex2(c.col[k]);
  tx("Class teacher's comments",mg,y,{b:1});let lw=d.getTextWidth("Class teacher's comments")+1.5;dots(mg+lw,R,y+.7);dots(mg,R-40,y+8.7);tx('Sign:',R-38,y+8,{b:1});dots(R-27,R,y+8.7);
  wrap2(c.ctc,R-mg-lw-2,R-mg-42,'ctc',mg+lw+1,y-.3,mg+1,y+7.7);y+=17;
  tx("Pupil's conduct:",mg,y,{b:1});lw=d.getTextWidth("Pupil's conduct:")+1.5;dots(mg+lw,R,y+.7);fit(c.cond,mg+lw+1,y-.3,R-mg-lw-2,'cond');
- y+=11;tx('SCHOOL REQUIREMENTS',W/2,y,{f:'helvetica',b:1,a:'center',c:red});
+ y+=11;sec(['SCHOOL REQUIREMENTS'],y);
  tab({startY:y+3,in:2,head:[c.req.map(r=>r.l)],body:[c.req.map(r=>cell(r.v,'req',{fontSize:10}))],fs:8.5,styles:{minCellHeight:8}});
  y=d.lastAutoTable.finalY+10;
  tx('Next term begins on:',mg,y,{b:1});lw=d.getTextWidth('Next term begins on:')+1.5;dots(mg+lw,112,y+.7);fit(c.nb,mg+lw+1,y-.3,112-mg-lw-2,'nb');
@@ -821,20 +840,25 @@ const rcPrintOne=id=>{const l=LI().find(x=>x.id==id);if(l)rcPrint([id],rcFn(l.na
 const rcPrintAll=()=>rcPrint(LI().map(l=>l.id),rcFn('ALL'));
 
 /* ---- on-screen preview ---- */
-function rcHtml(c){const k=c.col,ink=x=>`color:${k[x]}`,dl=(v,x,w)=>`<span style="flex:${w||1};border-bottom:1px dotted #333;min-height:18px;padding:0 4px;text-align:center;${ink(x)}">${esc(v)}</span>`,
- L=t=>`<b style="white-space:nowrap">${t}</b>`,row=(...p)=>`<div style="display:flex;gap:6px;align-items:flex-end;margin:7px 0">${p.join('')}</div>`,
+function rcHtml(c){const sy=c.sty||RC_DESIGNS[0],P1=c.col.border_primary,P2=c.col.border_accent,tc=(h,a)=>'rgb('+hex2(h).map(v=>Math.round(v+(255-v)*a)).join(',')+')',HF=sy.hf=='times'?"'Times New Roman',serif":'Arial,sans-serif',
+  secH=(ls,mt)=>{const st=sy.sec,t=ls.join('<br>'),ff=(sy.hf=='times'&&st!='red')?"'Times New Roman',serif":'Arial';
+   if(st=='red')return`<div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:${mt}px">${t}</div>`;
+   if(st=='bar')return`<div style="text-align:center;margin-top:${mt}px"><span style="display:inline-block;background:${P1};color:#fff;font-family:${ff};font-weight:700;padding:3px 26px;border-radius:4px">${t}</span></div>`;
+   if(st=='rules')return`<div style="display:flex;align-items:center;gap:10px;margin-top:${mt}px;color:${P1};font-family:${ff};font-weight:700"><span style="flex:1;border-top:2px solid ${P2}"></span><span style="text-align:center">${t}</span><span style="flex:1;border-top:2px solid ${P2}"></span></div>`;
+   return`<div style="text-align:center;margin-top:${mt}px"><span style="display:inline-block;color:${P1};font-family:${ff};font-weight:700;border-bottom:3px solid ${P2};padding:0 8px 1px">${t}</span></div>`},k=c.col,ink=x=>`color:${k[x]}`,dl=(v,x,w)=>`<span style="flex:${w||1};${sy.fld=='dots'?'border-bottom:1px dotted #333;':'border-bottom:1px solid '+(sy.fld=='box'?'#777':P1)+';'}${sy.fld=='box'?'background:'+tc(P1,.9)+';':''}min-height:18px;padding:0 4px;text-align:center;${ink(x)}">${esc(v)}</span>`,
+ L=t=>`<b style="white-space:nowrap;color:${sy.lab?P1:'#000'}">${t}</b>`,row=(...p)=>`<div style="display:flex;gap:6px;align-items:flex-end;margin:7px 0">${p.join('')}</div>`,
  td=(v,x,al)=>`<td style="${ink(x)};${al?'text-align:'+al:''}">${esc(v)}</td>`,hd=c.head;
- return`<style>.rcp table{border-collapse:collapse;width:100%;margin:4px 0}.rcp th,.rcp td{border:1px solid #000!important;padding:4px;text-align:center;background:#fff!important;color:#000;text-transform:none!important;white-space:normal!important;font-size:12.5px}.rcp th{font-weight:700}</style>
-<div class="rcp" style="background:#fff;color:#000;position:relative;padding:26px 38px;min-height:990px;font-family:'Times New Roman',serif;font-size:13.5px;max-width:700px;margin:auto;">${rcBorderSvg(c)}<div style="position:relative">
-<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px;margin-left:16.67px;margin-top:16.67px;flex-shrink:0">`:''}<div style="flex:1;text-align:center;font-family:Arial,sans-serif;font-weight:700">${hd.lines.map(l=>`<div style="color:${k.school_name};white-space:nowrap;font-size:${(l[1]+.5)*1.05}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
+ return`<style>.rcp table{border-collapse:collapse;width:100%;margin:4px 0}.rcp th,.rcp td{border:1px solid var(--g)!important;padding:4px;text-align:center;background:#fff!important;color:#000;text-transform:none!important;white-space:normal!important;font-size:12.5px}.rcp th{font-weight:700;background:var(--thb)!important;color:var(--thf)!important}.rcp tr:nth-child(odd):not(:first-child) td{background:var(--zb)!important}</style>
+<div class="rcp" style="--g:${sy.grid=='p'?P1:'#000'};--thb:${sy.head=='solid'?P1:sy.head=='tint'?tc(P1,.82):'#fff'};--thf:${sy.head=='solid'?'#fff':'#000'};--zb:${sy.zebra?tc(P2,.88):'#fff'};background:#fff;color:#000;position:relative;padding:26px 38px;min-height:990px;font-family:'Times New Roman',serif;font-size:13.5px;max-width:700px;margin:auto;">${rcBorderSvg(c)}<div style="position:relative">
+<div style="display:flex;align-items:center;gap:10px">${hd.logo?`<img src="${hd.logo}" style="width:92px;position:relative;left:40px;top:40px;flex-shrink:0">`:''}<div style="flex:1;text-align:center;font-family:${HF};font-weight:700">${hd.lines.map(l=>`<div style="color:${k.school_name};white-space:nowrap;font-size:${(l[1]+.5)*1.05}px">${esc(l[0])}</div>`).join('')}<div style="font-family:'Times New Roman',serif;font-size:14px;margin-top:4px">${esc(hd.contact)}</div></div></div>
 ${row(L('REPORT CARD FOR TERM'),dl(c.term,'term',3),L('YEAR'),dl(c.year,'year',2))}${row(L("PUPIL'S NAME:"),dl(c.name,'name',4),L('CLASS:'),dl(c.cls,'cls',1.4))}
 ${row(L('AGE:'),dl(c.age,'age',1),L('SEX:'),dl(c.sex,'sex',1),L('ATTENDANCE:'),dl(c.att,'att',2))}${row(L('LIN'),dl(c.lin,'lin',1))}
-<div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:8px">PROGRESSIVE REPORT<br>MID-TERM</div>
+${secH(['PROGRESSIVE REPORT','MID-TERM'],8)}
 <table><tr>${c.prog.cols.map(x=>`<th>${esc(x)}</th>`).join('')}<th>TOTAL /AGG</th><th>DIVISION</th></tr><tr>${c.prog.marks.map(v=>td(v,'mid_marks')).join('')}<td></td><td></td></tr><tr>${c.prog.aggs.map(v=>td(v,'mid_aggs')).join('')}${td(c.prog.tot,'mid_tot')}${td(c.prog.div,'mid_div')}</tr></table>
-<div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700">END OF TERM</div>
+${secH(['END OF TERM'],0)}
 <table><tr><th>NO.</th><th>LEARNING AREA</th><th>OUT OF</th><th>SCORES</th><th>AGG</th><th>TEACHER'S COMMENT</th></tr>${c.rows.map(r=>`<tr><td>${r.no}</td><td style="text-align:left;font-weight:700">${esc(r.n)}</td>${td(r.out,'out')}${td(r.sc,'sc')}${td(r.agg,'agg')}${td(r.cm,'cm','left')}</tr>`).join('')}${'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>'.repeat(c.spare)}<tr><td></td><td style="text-align:left;font-weight:700">TOTAL</td>${td(c.total.out,'tout')}${td(c.total.sc,'tsc')}${td(c.total.agg,'tagg')}${td(c.total.div,'tdiv')}</tr></table>
 ${row(L("Class teacher's comments"),dl(c.ctc,'ctc',1))}${row(L('Sign:'),dl('','ctc',1))}${row(L("Pupil's conduct:"),dl(c.cond,'cond',1))}
-<div style="text-align:center;color:#c81e2d;font-family:Arial;font-weight:700;margin-top:6px">SCHOOL REQUIREMENTS</div>
+${secH(['SCHOOL REQUIREMENTS'],6)}
 <table><tr>${c.req.map(r=>`<th>${esc(r.l)}</th>`).join('')}</tr><tr>${c.req.map(r=>td(r.v,'req')).join('')}</tr></table>
 ${row(L('Next term begins on:'),dl(c.nb,'nb',1),L('Ends on:'),dl(c.ne,'ne',1))}${row(L("Head Teacher's Comments:"),dl(c.htc,'htc',1))}${row(L('SIGN:'),dl('','htc',1))}</div></div>`}
 function rcPreview(id){if(!curRcOk())return;const l=LI().find(x=>x.id==id);if(!l)return;const P=rcPre();
@@ -855,12 +879,13 @@ function vReport(){const head=`<div class="card"><h2>Report Cards</h2>${rcBar()}
   ph=r=>(cs.out[r.k]!==undefined&&cs.out[r.k]!==''?cs.out[r.k]:(ee?ee.exp:'')),L=LI();
  return head+`<p style="margin:0 0 8px;color:var(--mu)"><b>Step 1:</b> set up the card below (class teacher or Director of Studies). <b>Step 2:</b> type each learner's comments with <b>Edit</b>. <b>Step 3:</b> preview and print. Marks come from the examination marksheet.</p></div>
 <div class="card w"><h2>Step 1: report card settings for ${esc(ctx.cls)}</h2>
-<div class="g"><div><label>Card design</label><select onchange="rcS('card',this.value)">${Object.keys(RC_CARDS).map(k=>`<option value="${k}" ${k==cs.card?'selected':''}>${RC_CARDS[k].name}</option>`).join('')}</select></div>
+<div class="g"><div><label>Report card design (5 to choose from)</label><select onchange="rcS('design',this.value)">${RC_DESIGNS.map((x,i)=>`<option value="${i+1}" ${String(cs.design)==String(i+1)?'selected':''}>${i+1}. ${x.n}</option>`).join('')}</select><small>Works with every border, every colour and the logo position. Preview before printing.</small></div>
+<div><label>Card type (class level)</label><select onchange="rcS('card',this.value)">${Object.keys(RC_CARDS).map(k=>`<option value="${k}" ${k==cs.card?'selected':''}>${RC_CARDS[k].name}</option>`).join('')}</select></div>
 <div><label>Page border design</label><select onchange="rcS('border',this.value)">${RC_BORDERS[cs.card].map((n,i)=>`<option value="${i+1}" ${String(cs.border)==String(i+1)?'selected':''}>${i+1}. ${n}</option>`).join('')}</select><small>Six designs per category, including the three Souvenir Word border patterns. Set colours below; preview before printing.</small></div>
 <div><label>Mid-term results (progressive report)</label><select onchange="rcS('mid',this.value)">${xo(cs.mid,'None (leave blank)')}</select></div>
 <div><label>End of term results (main table)</label><select onchange="rcS('end',this.value)">${xo(cs.end)}</select></div></div>
 <h3 style="margin:12px 0 4px;font-size:15px;color:var(--ac)">Learning areas: marksheet subject and OUT OF</h3>
-<div class="w"><table><tr><th>Learning area on the card</th><th>Takes marks from (marksheet subject)</th><th>OUT OF</th></tr>${card.rows.map(r=>`<tr><td style="text-align:left"><b>${r.n}</b></td><td><select onchange="rcM('map','${r.k}',this.value)"><option value="" ${!cs.map[r.k]?'selected':''}>Automatic</option>${subs.map(s=>`<option ${cs.map[r.k]==s?'selected':''}>${esc(s)}</option>`).join('')}<option value="-" ${cs.map[r.k]=='-'?'selected':''}>-</option></select></td><td><input type="number" style="width:90px" value="${cs.out[r.k]!==undefined?esc(cs.out[r.k]):''}" placeholder="${esc(ph(r))}" onchange="rcM('out','${r.k}',this.value)"></td></tr>`).join('')}</table></div>
+<div class="w"><table><tr><th>Learning area on the card</th><th>Takes marks from (marksheet subject)</th><th>OUT OF</th></tr>${card.rows.map(r=>`<tr><td style="text-align:left"><b>${r.n}</b></td><td><select onchange="rcM('map','${r.k}',this.value)"><option value="" ${!cs.map[r.k]?'selected':''}>${(()=>{if(!ee)return'Automatic';const i=rcIdx(ee,r,{map:{}});return i>=0?'Automatic ('+esc(ee.cfg.subjects[i].name)+')':'Automatic (no match found: choose below)'})()}</option>${subs.map(s=>`<option ${cs.map[r.k]==s?'selected':''}>${esc(s)}</option>`).join('')}<option value="-" ${cs.map[r.k]=='-'?'selected':''}>-</option></select></td><td><input type="number" style="width:90px" value="${cs.out[r.k]!==undefined?esc(cs.out[r.k]):''}" placeholder="${esc(ph(r))}" onchange="rcM('out','${r.k}',this.value)"></td></tr>`).join('')}</table></div>
 <p style="margin:4px 0 0;color:var(--mu);font-size:13px">If OUT OF is left empty, the examination's expected marks are used. Choose "-" to leave a learning area blank. A learning area with no mark in the marksheet stays blank on the card.</p>
 <h3 style="margin:12px 0 4px;font-size:15px;color:var(--ac)">Teacher's comment for each aggregate</h3>
 <div class="g" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${[1,2,3,4,5,6,7,8,9].map(a=>`<div><label>${AGG_LABELS[a]} (aggregate ${a})</label><input value="${esc(cs.scale[a])}" onchange="rcM('scale',${a},this.value)"></div>`).join('')}</div>
